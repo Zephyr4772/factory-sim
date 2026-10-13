@@ -3,3 +3,8 @@
 *.pdf binary
 *.png binary
 *.jpg binary
+
+# Generated or documentation files: exclude from GitHub's language statistics
+showcase/** linguist-generated
+docs/** linguist-documentation
+examples/** linguist-documentation

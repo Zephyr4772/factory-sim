@@ -50,8 +50,8 @@ On Windows with Visual Studio, open **"Developer PowerShell for VS 2022"** from 
 ### Step 1: get the code
 
 ```bash
-git clone https://github.com/<your-account>/<repository>.git
-cd <repository>
+git clone https://github.com/Zephyr4772/factory-sim.git
+cd factory-sim
 ```
 (or download the ZIP from the GitHub page, unzip it, and open a terminal in the unzipped folder)
 
