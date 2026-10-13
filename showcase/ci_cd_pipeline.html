@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factory Studio</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f3f4f6; --panel:#ffffff; --raised:#ffffff; --line:#e1e5ea; --line-strong:#b8c0cb;
+  --ink:#1b2129; --muted:#667180; --accent:#2563d6; --accent-soft:rgba(37,99,214,.10);
+  --idle:#8a94a3; --busy:#1f9461; --blocked:#c98a14; --down:#d03a37; --rework:#17909c; --grid:#dfe3e9;
+  --good:#1f9461; --warn:#c98a14; --bad:#d03a37;
+}
+*{box-sizing:border-box}
+*{scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:5px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:content-box}
+::-webkit-scrollbar-corner{background:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+button,select,input,textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line-strong);border-radius:6px}
+button{height:34px;padding:0 14px;font-weight:500;cursor:pointer;white-space:nowrap}
+button:hover{background:var(--raised);border-color:var(--muted)}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.primary:hover{filter:brightness(1.1)}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.45;cursor:not-allowed}
+select,input{height:34px;padding:0 10px}
+input[type=number]{width:100%}
+input[type=checkbox]{width:16px;height:16px;padding:0;accent-color:var(--accent)}
+input[type=range]{height:auto;padding:0;border:0;accent-color:var(--accent)}
+textarea{width:100%;padding:8px 10px;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.5;resize:vertical}
+
+header{min-height:60px;flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding:10px 24px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{font-weight:700;font-size:15px;white-space:nowrap}
+.brand span{color:var(--muted);font-weight:400;margin-left:8px}
+.group{display:flex;align-items:center;gap:8px;padding-left:16px;border-left:1px solid var(--line)}
+.sp{flex:1}
+.chip{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:12px;font-size:12px;background:var(--raised);border:1px solid var(--line-strong);color:var(--muted)}
+.chip.flag{border-color:var(--warn);color:var(--warn)}
+#msg{display:none;flex:none;padding:10px 24px;background:var(--bad);color:#fff;font-weight:500}
+#msg.info{background:var(--accent)}
+
+.workspace{flex:1;min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr) 360px}
+.side{background:var(--panel);overflow:auto;padding:24px 20px}
+.side.left{border-right:1px solid var(--line)}
+.side.right{border-left:1px solid var(--line)}
+.side h4{margin:28px 0 12px;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.9px;text-transform:uppercase}
+.side h4:first-child{margin-top:0}
+.pal{display:flex;align-items:center;gap:12px;width:100%;height:auto;margin:0 0 8px;padding:10px 12px;text-align:left;background:var(--raised);border-color:var(--line)}
+.pal:hover{border-color:var(--accent)}
+.pal i{width:4px;align-self:stretch;border-radius:2px;flex:none}
+.pal b{display:block;font-weight:600}
+.pal small{display:block;color:var(--muted);font-size:12px;line-height:1.3}
+.tips{color:var(--muted);font-size:12.5px;line-height:1.7}
+.tips p{margin:0 0 8px}
+kbd{font-family:ui-monospace,Consolas,monospace;font-size:11px;padding:1px 6px;border:1px solid var(--line-strong);border-radius:4px;background:var(--raised)}
+
+.center{display:flex;flex-direction:column;min-width:0;min-height:0}
+.stage{position:relative;flex:1;min-height:240px;background:var(--bg)}
+canvas#cv{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+.legend{position:absolute;left:20px;bottom:16px;display:flex;gap:18px;font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 14px}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.hint{position:absolute;right:20px;bottom:16px;color:var(--muted);font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 14px;pointer-events:none}
+.playbar{flex:none;display:flex;align-items:center;gap:16px;padding:12px 24px;border-top:1px solid var(--line);background:var(--panel)}
+.playbar input[type=range]{flex:1}
+.playbar #bPlay{width:76px}
+.mono{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+.timer{font-size:13px;min-width:72px}
+.results{flex:none;height:clamp(190px,32vh,320px);border-top:1px solid var(--line);background:var(--panel);overflow:auto;padding:0 24px 24px}
+.results.hide{display:none}
+.tabs{display:flex;gap:4px;margin:0 0 18px;border-bottom:1px solid var(--line)}
+.tabs button{height:40px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted);padding:0 14px;margin-bottom:-1px}
+.tabs button:hover{color:var(--ink);background:transparent}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+.results .tabs{position:sticky;top:0;background:var(--panel);padding-top:12px;z-index:1}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.kpi b{display:block;font-size:22px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+.kpi span{display:block;margin-top:2px;color:var(--muted);font-size:12px}
+.banner{border:1px solid var(--line-strong);border-radius:8px;padding:14px 16px;margin-bottom:12px;background:var(--raised)}
+.banner .bt{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.banner.bad{border-color:var(--bad)} .banner.bad .bt{color:var(--bad)}
+.banner.warn{border-color:var(--warn)} .banner.warn .bt{color:var(--warn)}
+.note{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:11px;letter-spacing:.6px;text-transform:uppercase}
+tr.row{cursor:pointer}
+tr.row:hover{background:var(--raised)}
+.bar{display:flex;height:10px;border-radius:2px;overflow:hidden;background:var(--line);min-width:160px}
+.bar i{display:block;height:100%}
+.tag{display:inline-block;margin-left:10px;padding:1px 8px;border-radius:3px;font-size:11px;font-weight:600;background:var(--warn);color:#fff}
+.deltabar{height:8px;border-radius:2px;min-width:2px}
+
+/* inspector */
+.prm{margin:0 0 18px}
+.prm>label{display:flex;justify-content:space-between;align-items:center;color:var(--ink);font-size:12.5px;font-weight:500;margin-bottom:6px}
+.prm .x{height:auto;border:0;background:transparent;padding:0;font-size:12px;font-weight:500;color:var(--accent)}
+.prm .x:hover{background:transparent;text-decoration:underline}
+.prm .doc{color:var(--muted);font-size:12px;margin-top:6px;line-height:1.45}
+.row2{display:flex;gap:8px;align-items:center}
+.row2>*{min-width:0}
+.edge{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px}
+.edge .row2{margin-bottom:10px}
+.edge label{display:inline-flex;gap:8px;align-items:center;color:var(--muted);font-size:12.5px;margin-right:14px}
+.sect{border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px;background:var(--raised)}
+.sect>b{display:block;margin-bottom:4px}
+.small{font-size:12.5px;color:var(--muted);line-height:1.5}
+details>summary{cursor:pointer;color:var(--muted);margin:12px 0 8px;font-size:12.5px}
+.actions{display:flex;gap:8px;margin-top:8px}
+@media (max-width:1300px){ .brand span{display:none} }
+@media (max-width:1100px){ .workspace{grid-template-columns:1fr} .side{max-height:220px} body{overflow:auto} .group{display:none} }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Factory Studio<span>pipeline simulator</span></div>
+  <div class="group">
+    <select id="examples" title="Load an example pipeline"></select>
+    <button id="bNew">New</button>
+    <button id="bLayout" title="Re-space the nodes left to right">Auto-layout</button>
+  </div>
+  <div class="group">
+    <button id="bLoad">Open file</button>
+    <button id="bSave">Save file</button>
+  </div>
+  <input type="file" id="file" accept=".json,application/json" style="display:none">
+  <span class="sp"></span>
+  <span id="stale" class="chip flag" style="display:none">Results out of date</span>
+  <div class="group">
+    <button id="bWhatIf" title="Measure which improvement helps the most">What-if</button>
+    <button id="bRep" title="20 independent runs with confidence intervals">Replicate x20</button>
+    <button id="bAudit" title="Generate an audit and health report (PDF) for this pipeline">Audit report (PDF)</button>
+    <button id="bExport" title="Download a self-contained replay page">Export replay</button>
+  </div>
+  <button id="bRun" class="primary" title="Ctrl+Enter">Run simulation</button>
+</header>
+<div id="msg"></div>
+
+<div class="workspace">
+  <aside class="side left">
+    <h4>Add node</h4>
+    <div id="palette"></div>
+    <h4>My node types</h4>
+    <div id="templates" class="small">None yet. Select a node and use Save as node type.</div>
+    <h4>Tips</h4>
+    <div class="tips">
+      <p>Click a type to add it. If a node is selected, the new node is wired after it.</p>
+      <p>Drag the round handle on a selected node onto another node to connect them.</p>
+      <p>Scroll to zoom, drag the background to pan. <kbd>Del</kbd> removes the selection, <kbd>Space</kbd> plays or pauses.</p>
+    </div>
+  </aside>
+
+  <main class="center">
+    <div class="stage" id="stage">
+      <canvas id="cv"></canvas>
+      <div class="legend"><span><i style="background:var(--idle)"></i>Starved</span><span><i style="background:var(--busy)"></i>Busy</span><span><i style="background:var(--blocked)"></i>Blocked</span><span><i style="background:var(--down)"></i>Down</span></div>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="playbar">
+      <button id="bPlay">Pause</button>
+      <span class="mono timer" id="tNow">00:00:00</span>
+      <input type="range" id="scrub" min="0" max="1000" value="0">
+      <span class="mono small timer" id="tEnd">00:00:00</span>
+      <button id="bRes" title="Show / hide the results panel">Hide results</button>
+      <select id="speed" title="Simulated seconds per real second">
+        <option value="5">5&times;</option><option value="30">30&times;</option>
+        <option value="120" selected>120&times;</option><option value="600">600&times;</option><option value="2400">2400&times;</option>
+      </select>
+    </div>
+    <section class="results" id="results"></section>
+  </main>
+
+  <aside class="side right">
+    <div class="tabs" id="rtabs">
+      <button data-t="node" class="on">Node</button><button data-t="sim">Simulation</button><button data-t="json">JSON</button>
+    </div>
+    <div id="inspector"></div>
+  </aside>
+</div>
+
+<script>
+window.EMBEDDED = {"config":{"description":"Commits (features, hotfixes, docs changes) are built on three runners that sometimes crash, then unit-tested (2% flaky failures retry the build). Docs skip integration and go straight to deploy; everything else runs in one of three shared integration environments. Hotfixes jump every queue. The nodes here are build servers, but the maths is the same as a factory.","name":"Software: CI/CD pipeline","nodes":[{"downstream":["runner_1","runner_2","runner_3"],"id":"commits","interarrival":{"dist":"exponential","mean":150},"label":"Commits","mix":{"docs":0.2,"feature":0.7,"hotfix":0.1},"priority":{"docs":0,"feature":1,"hotfix":3},"routing":{"policy":"shortest_queue"},"type":"source","x":100,"y":410},{"capacity":4,"discipline":"priority","downstream":["unit_tests"],"id":"runner_1","label":"Build runner 1","mtbf":7200,"mttr":300,"on_failure":"restart","process":{"dist":"normal","mean":240,"stddev":60},"type":"machine","x":370,"y":260},{"capacity":4,"discipline":"priority","downstream":["unit_tests"],"id":"runner_2","label":"Build runner 2","mtbf":7200,"mttr":300,"on_failure":"restart","process":{"dist":"normal","mean":240,"stddev":60},"type":"machine","x":370,"y":410},{"capacity":4,"discipline":"priority","downstream":["unit_tests"],"id":"runner_3","label":"Build runner 3","mtbf":7200,"mttr":300,"on_failure":"restart","process":{"dist":"normal","mean":240,"stddev":60},"type":"machine","x":370,"y":560},{"capacity":6,"discipline":"priority","downstream":[{"to":"deploy","weight":1.0},{"to":"int_env_1","weight":0.3133},{"to":"int_env_2","weight":0.3133},{"to":"int_env_3","weight":0.3133},{"bypass":true,"label":"flaky retry","rework":true,"to":"runner_1","weight":0.02},{"bypass":true,"label":"flaky retry","rework":true,"to":"runner_2","weight":0.02},{"bypass":true,"label":"flaky retry","rework":true,"to":"runner_3","weight":0.02}],"id":"unit_tests","label":"Unit tests","process":{"dist":"normal","mean":90,"stddev":20},"routing":{"policy":"probabilistic","rules":[{"match":{"type":"docs"},"to":"deploy"},{"to":["int_env_1","int_env_2","int_env_3","runner_1","runner_2","runner_3"]}]},"type":"machine","x":640,"y":410},{"capacity":3,"discipline":"priority","downstream":["deploy"],"id":"int_env_1","label":"Integration env 1","mtbf":14400,"mttr":900,"process":{"dist":"normal","mean":420,"stddev":90},"type":"machine","x":910,"y":260},{"capacity":3,"discipline":"priority","downstream":["deploy"],"id":"int_env_2","label":"Integration env 2","mtbf":14400,"mttr":900,"process":{"dist":"normal","mean":420,"stddev":90},"type":"machine","x":910,"y":410},{"capacity":3,"discipline":"priority","downstream":["deploy"],"id":"int_env_3","label":"Integration env 3","mtbf":14400,"mttr":900,"process":{"dist":"normal","mean":420,"stddev":90},"type":"machine","x":910,"y":560},{"capacity":4,"downstream":["prod"],"id":"deploy","label":"Deploy","process":{"dist":"normal","mean":90,"stddev":20},"type":"machine","x":1180,"y":410},{"id":"prod","label":"In production","type":"sink","x":1450,"y":410}],"simulation":{"duration_seconds":28800,"random_seed":61,"sample_interval":120,"warmup_seconds":1800}},"summary":{"avg_wip":12.729102108925925,"bottleneck":"int_env_2","completed":183,"conservation_ok":true,"created":185,"cycle_time_s":1954.0853400393257,"deadlock":null,"demand_limited":true,"diagnosis":"The line keeps up with demand (0.00% lost, sources never throttled): throughput equals the arrival rate, so nothing is binding right now. The busiest station is 'int_env_2' at 84% busy; that is where capacity runs out first as demand grows.","little":{"L":12.729102108925925,"W":1954.0853400393257,"gap_pct":1.2050058817860614,"lambda":0.006592592592592593},"lost":0,"lost_pct":0.0,"nodes":[{"avg_occupancy":0.0,"avg_wait_s":0.0,"blocked_pct":0.0,"bottleneck_index":0.0,"busy_pct":0.0,"capacity":-1,"down_pct":0.0,"failures":0,"id":"commits","idle_pct":100.0,"kind":"source","lost_units":0,"max_occupancy":0,"processed_units":0,"station":false},{"avg_occupancy":1.6093236384444445,"avg_wait_s":204.914928125,"blocked_pct":12.862388,"bottleneck_index":84.80415964481483,"busy_pct":78.6288680962963,"capacity":4,"down_pct":1.9920212925925926,"failures":3,"id":"runner_1","idle_pct":6.516722611111111,"kind":"machine","lost_units":0,"max_occupancy":3,"processed_units":88,"station":true},{"avg_occupancy":1.0068809413703703,"avg_wait_s":165.44098511864405,"blocked_pct":9.858276651851853,"bottleneck_index":58.86116877074074,"busy_pct":53.34132891851852,"capacity":4,"down_pct":1.3365695962962962,"failures":3,"id":"runner_2","idle_pct":35.463824833333334,"kind":"machine","lost_units":0,"max_occupancy":3,"processed_units":60,"station":true},{"avg_occupancy":0.5633938063333334,"avg_wait_s":192.76592827586205,"blocked_pct":7.762294688888889,"bottleneck_index":32.05586760777778,"busy_pct":27.87259735185185,"capacity":4,"down_pct":0.0,"failures":0,"id":"runner_3","idle_pct":64.36510795925926,"kind":"machine","lost_units":0,"max_occupancy":3,"processed_units":30,"station":true},{"avg_occupancy":3.624254389037037,"avg_wait_s":421.23249640782126,"blocked_pct":25.101030251851853,"bottleneck_index":62.44006071199295,"busy_pct":58.16729744074074,"capacity":6,"down_pct":0.0,"failures":0,"id":"unit_tests","idle_pct":16.731672307407408,"kind":"machine","lost_units":0,"max_occupancy":7,"processed_units":180,"station":true},{"avg_occupancy":1.2597219462962963,"avg_wait_s":339.99063476190474,"blocked_pct":0.0,"bottleneck_index":79.65597795370371,"busy_pct":69.6650435962963,"capacity":3,"down_pct":3.419718959259259,"failures":3,"id":"int_env_1","idle_pct":26.915237444444443,"kind":"machine","lost_units":0,"max_occupancy":4,"processed_units":43,"station":true},{"avg_occupancy":2.3770124606666667,"avg_wait_s":769.5909026666667,"blocked_pct":0.0,"bottleneck_index":90.77342627962965,"busy_pct":83.9679813,"capacity":3,"down_pct":0.23422958148148149,"failures":1,"id":"int_env_2","idle_pct":15.79778911851852,"kind":"machine","lost_units":0,"max_occupancy":4,"processed_units":55,"station":true},{"avg_occupancy":1.2523705327037038,"avg_wait_s":476.50328575000003,"blocked_pct":0.0,"bottleneck_index":68.2744972351852,"busy_pct":53.68951502592593,"capacity":3,"down_pct":8.013766811111111,"failures":1,"id":"int_env_3","idle_pct":38.29671816296296,"kind":"machine","lost_units":0,"max_occupancy":4,"processed_units":36,"station":true},{"avg_occupancy":1.036144394074074,"avg_wait_s":67.08371936516853,"blocked_pct":0.0,"bottleneck_index":60.01640202666666,"busy_pct":59.38887627037037,"capacity":4,"down_pct":0.0,"failures":0,"id":"deploy","idle_pct":40.61112372962963,"kind":"machine","lost_units":0,"max_occupancy":5,"processed_units":178,"station":true},{"avg_occupancy":0.0,"avg_wait_s":0.0,"blocked_pct":0.0,"bottleneck_index":0.0,"busy_pct":0.0,"capacity":-1,"down_pct":0.0,"failures":0,"id":"prod","idle_pct":100.0,"kind":"sink","lost_units":0,"max_occupancy":0,"processed_units":178,"station":false}],"samples":[[120.0,0,0],[240.0,2,0],[360.0,4,0],[480.0,4,0],[600.0,5,0],[720.0,7,0],[840.0,7,0],[960.0,7,0],[1080.0,7,1],[1200.0,6,2],[1320.0,7,2],[1440.0,9,2],[1560.0,8,3],[1680.0,8,4],[1800.0,8,5],[1920.0,7,6],[2040.0,7,7],[2160.0,7,8],[2280.0,7,8],[2400.0,9,8],[2520.0,9,9],[2640.0,10,10],[2760.0,11,10],[2880.0,12,10],[3000.0,13,11],[3120.0,11,13],[3240.0,11,14],[3360.0,12,15],[3480.0,10,17],[3600.0,10,18],[3720.0,10,19],[3840.0,10,20],[3960.0,12,21],[4080.0,12,21],[4200.0,13,22],[4320.0,12,23],[4440.0,14,24],[4560.0,15,24],[4680.0,17,24],[4800.0,17,25],[4920.0,17,25],[5040.0,17,26],[5160.0,17,27],[5280.0,17,27],[5400.0,17,27],[5520.0,20,28],[5640.0,20,29],[5760.0,19,30],[5880.0,20,30],[6000.0,19,31],[6120.0,18,32],[6240.0,19,32],[6360.0,20,32],[6480.0,20,32],[6600.0,19,33],[6720.0,20,34],[6840.0,19,36],[6960.0,19,37],[7080.0,19,37],[7200.0,20,37],[7320.0,20,37],[7440.0,19,38],[7560.0,17,40],[7680.0,18,41],[7800.0,19,41],[7920.0,18,42],[8040.0,18,42],[8160.0,18,43],[8280.0,17,44],[8400.0,15,46],[8520.0,16,46],[8640.0,17,46],[8760.0,18,46],[8880.0,18,47],[9000.0,18,48],[9120.0,17,49],[9240.0,17,50],[9360.0,17,50],[9480.0,17,51],[9600.0,17,52],[9720.0,17,52],[9840.0,16,53],[9960.0,15,54],[10080.0,13,56],[10200.0,15,57],[10320.0,13,59],[10440.0,14,60],[10560.0,14,61],[10680.0,13,62],[10800.0,11,64],[10920.0,10,65],[11040.0,8,67],[11160.0,7,68],[11280.0,8,69],[11400.0,6,71],[11520.0,5,72],[11640.0,4,73],[11760.0,5,73],[11880.0,4,74],[12000.0,4,75],[12120.0,4,76],[12240.0,3,77],[12360.0,4,78],[12480.0,3,79],[12600.0,5,79],[12720.0,6,79],[12840.0,9,79],[12960.0,11,79],[13080.0,12,80],[13200.0,13,80],[13320.0,12,81],[13440.0,14,81],[13560.0,12,83],[13680.0,12,83],[13800.0,13,83],[13920.0,12,84],[14040.0,13,84],[14160.0,13,84],[14280.0,11,86],[14400.0,10,87],[14520.0,10,87],[14640.0,12,87],[14760.0,13,87],[14880.0,12,88],[15000.0,12,89],[15120.0,13,89],[15240.0,13,89],[15360.0,12,90],[15480.0,13,91],[15600.0,14,91],[15720.0,15,91],[15840.0,14,92],[15960.0,15,92],[16080.0,15,92],[16200.0,14,93],[16320.0,14,93],[16440.0,16,94],[16560.0,17,94],[16680.0,16,95],[16800.0,17,95],[16920.0,17,95],[17040.0,16,96],[17160.0,16,96],[17280.0,15,97],[17400.0,15,97],[17520.0,15,98],[17640.0,15,98],[17760.0,15,99],[17880.0,16,99],[18000.0,15,100],[18120.0,15,101],[18240.0,14,102],[18360.0,16,102],[18480.0,19,102],[18600.0,19,102],[18720.0,18,103],[18840.0,18,104],[18960.0,18,104],[19080.0,22,104],[19200.0,21,105],[19320.0,20,106],[19440.0,20,107],[19560.0,19,108],[19680.0,20,108],[19800.0,19,110],[19920.0,19,111],[20040.0,19,112],[20160.0,18,113],[20280.0,16,115],[20400.0,15,116],[20520.0,13,118],[20640.0,13,119],[20760.0,12,121],[20880.0,13,122],[21000.0,13,123],[21120.0,13,125],[21240.0,12,126],[21360.0,12,127],[21480.0,11,128],[21600.0,13,129],[21720.0,11,131],[21840.0,11,132],[21960.0,10,133],[22080.0,9,135],[22200.0,8,136],[22320.0,8,137],[22440.0,9,137],[22560.0,10,138],[22680.0,11,138],[22800.0,10,139],[22920.0,11,139],[23040.0,13,139],[23160.0,13,140],[23280.0,12,141],[23400.0,13,141],[23520.0,14,142],[23640.0,14,142],[23760.0,13,143],[23880.0,13,144],[24000.0,12,145],[24120.0,11,147],[24240.0,10,148],[24360.0,10,149],[24480.0,11,150],[24600.0,9,152],[24720.0,8,153],[24840.0,8,154],[24960.0,7,155],[25080.0,8,155],[25200.0,8,155],[25320.0,7,156],[25440.0,8,157],[25560.0,8,158],[25680.0,9,159],[25800.0,9,160],[25920.0,7,162],[26040.0,10,162],[26160.0,9,163],[26280.0,10,163],[26400.0,9,164],[26520.0,11,164],[26640.0,9,166],[26760.0,9,167],[26880.0,12,167],[27000.0,13,168],[27120.0,12,169],[27240.0,11,170],[27360.0,10,171],[27480.0,9,172],[27600.0,9,173],[27720.0,7,175],[27840.0,6,176],[27960.0,6,176],[28080.0,4,178],[28200.0,3,179],[28320.0,4,180],[28440.0,4,180],[28560.0,2,182],[28680.0,3,182]],"scrapped":0,"sources_blocked_pct":0.0,"uph":23.733333333333334,"warnings":[],"window_s":27000.0,"wip_end":2},"trace":{"events":[[150784,2,0,1,1],[150784,1,1,1,0],[150784,1,1,0,0],[150784,0,1,1,0],[162166,2,0,1,1],[162166,1,1,1,0],[274998,2,0,2,2],[274998,1,2,1,0],[274998,1,2,0,0],[274998,0,2,1,0],[314427,2,0,2,1],[314427,1,2,1,0],[336572,0,1,3,0],[380183,0,1,1,0],[520158,2,2,4,2],[520158,1,4,1,0],[520158,1,4,0,0],[520158,0,4,1,0],[520158,0,2,0,0],[520158,1,2,0,0],[520158,0,2,1,0],[526496,2,0,2,1],[526496,1,2,1,0],[615652,2,4,6,2],[615652,1,6,1,0],[615652,1,6,0,0],[615652,0,6,1,0],[615652,0,4,0,0],[662139,2,1,4,1],[662139,1,4,1,0],[662139,1,4,0,0],[662139,0,4,1,0],[662139,0,1,0,0],[662139,1,1,0,0],[662139,0,1,1,0],[684040,2,0,1,1],[684040,1,1,1,0],[688019,2,0,3,0],[688019,1,3,1,0],[688019,1,3,0,0],[688019,0,3,1,0],[732503,2,4,6,1],[732503,1,6,1,0],[732503,0,4,0,0],[769270,2,2,4,1],[769270,1,4,1,0],[769270,1,4,0,0],[769270,0,4,1,0],[769270,0,2,0,0],[769270,1,2,0,0],[769270,0,2,1,0],[835044,2,3,4,0],[835044,1,4,1,0],[835044,0,3,0,0],[842075,2,4,6,1],[842075,1,6,2,0],[842075,0,4,0,0],[842075,1,4,0,0],[842075,0,4,1,0],[903903,2,1,4,1],[903903,1,4,1,0],[903903,0,1,0,0],[903903,1,1,0,0],[903903,0,1,1,0],[964291,2,4,8,0],[964291,1,8,1,0],[964291,1,8,0,0],[964291,0,8,1,0],[964291,0,4,0,0],[964291,1,4,0,0],[964291,0,4,1,0],[973300,2,0,1,1],[973300,1,1,1,0],[1003062,2,6,8,2],[1003062,1,8,1,0],[1003062,0,6,0,0],[1003062,1,6,1,0],[1003062,0,6,1,0],[1053126,2,8,9,0],[1053126,0,8,0,0],[1053126,1,8,0,0],[1053126,0,8,1,0],[1056086,2,2,4,1],[1056086,1,4,1,0],[1056086,0,2,0,0],[1068698,2,4,5,1],[1068698,1,5,1,0],[1068698,1,5,0,0],[1068698,0,5,1,0],[1068698,0,4,0,0],[1068698,1,4,0,0],[1068698,0,4,1,0],[1121473,2,1,4,1],[1121473,1,4,1,0],[1121473,0,1,0,0],[1121473,1,1,0,0],[1121473,0,1,1,0],[1138187,2,4,5,1],[1138187,1,5,1,0],[1138187,0,4,0,0],[1138187,1,4,0,0],[1138187,0,4,1,0],[1163473,2,8,9,2],[1163473,0,8,0,0],[1229050,2,4,6,1],[1229050,1,6,2,0],[1229050,0,4,0,0],[1312660,2,0,1,1],[1312660,1,1,1,0],[1329873,2,6,8,1],[1329873,1,8,1,0],[1329873,1,8,0,0],[1329873,0,8,1,0],[1329873,0,6,0,0],[1329873,1,6,1,0],[1329873,0,6,1,0],[1343008,2,1,4,1],[1343008,1,4,1,0],[1343008,1,4,0,0],[1343008,0,4,1,0],[1343008,0,1,0,0],[1343008,1,1,0,0],[1343008,0,1,1,0],[1344001,2,0,1,1],[1344001,1,1,1,0],[1427675,2,0,2,0],[1427675,1,2,1,0],[1427675,1,2,0,0],[1427675,0,2,1,0],[1434132,2,4,1,1],[1434132,1,1,2,0],[1434132,0,4,0,0],[1442788,2,8,9,1],[1442788,0,8,0,0],[1487559,2,5,8,1],[1487559,1,8,1,0],[1487559,1,8,0,0],[1487559,0,8,1,0],[1487559,0,5,0,0],[1487559,1,5,0,0],[1487559,0,5,1,0],[1530197,2,6,8,1],[1530197,1,8,1,0],[1530197,0,6,0,0],[1530197,1,6,0,0],[1530197,0,6,1,0],[1579396,2,8,9,1],[1579396,0,8,0,0],[1579396,1,8,0,0],[1579396,0,8,1,0],[1594232,2,0,2,2],[1594232,1,2,1,0],[1608315,2,1,4,1],[1608315,1,4,1,0],[1608315,1,4,0,0],[1608315,0,4,1,0],[1608315,0,1,0,0],[1608315,1,1,1,0],[1608315,0,1,1,0],[1680478,2,8,9,1],[1680478,0,8,0,0],[1686830,2,4,6,1],[1686830,1,6,1,0],[1686830,0,4,0,0],[1693716,2,0,3,2],[1693716,1,3,1,0],[1693716,1,3,0,0],[1693716,0,3,1,0],[1715046,2,2,4,0],[1715046,1,4,1,0],[1715046,1,4,0,0],[1715046,0,4,1,0],[1715046,0,2,0,0],[1715046,1,2,0,0],[1715046,0,2,1,0],[1771803,2,1,4,1],[1771803,1,4,1,0],[1771803,0,1,0,0],[1771803,1,1,0,0],[1771803,0,1,1,0],[1805889,2,4,8,0],[1805889,1,8,1,0],[1805889,1,8,0,0],[1805889,0,8,1,0],[1805889,0,4,0,0],[1805889,1,4,0,0],[1805889,0,4,1,0],[1873501,2,2,4,2],[1873501,1,4,1,0],[1873501,0,2,0,0],[1901360,2,4,7,1],[1901360,1,7,1,0],[1901360,1,7,0,0],[1901360,0,7,1,0],[1901360,0,4,0,0],[1901360,1,4,0,0],[1901360,0,4,1,0],[1902323,2,8,9,0],[1902323,0,8,0,0],[1903292,2,3,4,2],[1903292,1,4,1,0],[1903292,0,3,0,0],[1950169,2,5,8,1],[1950169,1,8,1,0],[1950169,1,8,0,0],[1950169,0,8,1,0],[1950169,0,5,0,0],[1976212,2,0,1,1],[1976212,1,1,1,0],[1989572,2,6,8,1],[1989572,1,8,1,0],[1989572,0,6,0,0],[1989572,1,6,0,0],[1989572,0,6,1,0],[1994101,2,4,6,2],[1994101,1,6,1,0],[1994101,0,4,0,0],[1994101,1,4,0,0],[1994101,0,4,1,0],[2022006,2,8,9,1],[2022006,0,8,0,0],[2022006,1,8,0,0],[2022006,0,8,1,0],[2049686,2,1,4,1],[2049686,1,4,1,0],[2049686,0,1,0,0],[2049686,1,1,0,0],[2049686,0,1,1,0],[2070461,2,4,6,2],[2070461,1,6,2,0],[2070461,0,4,0,0],[2070461,1,4,0,0],[2070461,0,4,1,0],[2131493,2,8,9,1],[2131493,0,8,0,0],[2155329,2,0,1,1],[2155329,1,1,1,0],[2180620,2,4,6,1],[2180620,1,6,3,0],[2180620,0,4,0,0],[2318443,2,1,4,1],[2318443,1,4,1,0],[2318443,1,4,0,0],[2318443,0,4,1,0],[2318443,0,1,0,0],[2318443,1,1,0,0],[2318443,0,1,1,0],[2332712,2,0,1,0],[2332712,1,1,1,0],[2374666,2,4,7,1],[2374666,1,7,1,0],[2374666,0,4,0,0],[2398072,2,0,2,0],[2398072,1,2,1,0],[2398072,1,2,0,0],[2398072,0,2,1,0],[2405204,2,6,8,1],[2405204,1,8,1,0],[2405204,1,8,0,0],[2405204,0,8,1,0],[2405204,0,6,0,0],[2405204,1,6,2,0],[2405204,0,6,1,0],[2433589,2,7,8,1],[2433589,1,8,1,0],[2433589,0,7,0,0],[2433589,1,7,0,0],[2433589,0,7,1,0],[2483044,2,8,9,1],[2483044,0,8,0,0],[2483044,1,8,0,0],[2483044,0,8,1,0],[2510242,2,0,2,1],[2510242,1,2,1,0],[2558629,2,1,4,1],[2558629,1,4,1,0],[2558629,1,4,0,0],[2558629,0,4,1,0],[2558629,0,1,0,0],[2558629,1,1,0,0],[2558629,0,1,1,0],[2561059,2,8,9,1],[2561059,0,8,0,0],[2566447,2,0,1,0],[2566447,1,1,1,0],[2607627,0,7,3,0],[2620076,2,0,3,0],[2620076,1,3,1,0],[2620076,1,3,0,0],[2620076,0,3,1,0],[2629370,2,4,5,1],[2629370,1,5,1,0],[2629370,1,5,0,0],[2629370,0,5,1,0],[2629370,0,4,0,0],[2713568,2,0,3,1],[2713568,1,3,1,0],[2767101,2,2,4,0],[2767101,1,4,1,0],[2767101,1,4,0,0],[2767101,0,4,1,0],[2767101,0,2,0,0],[2767101,1,2,0,0],[2767101,0,2,1,0],[2792868,2,1,4,0],[2792868,1,4,1,0],[2792868,0,1,0,0],[2792868,1,1,0,0],[2792868,0,1,1,0],[2831541,2,3,4,0],[2831541,1,4,2,0],[2831541,0,3,0,0],[2831541,1,3,0,0],[2831541,0,3,1,0],[2832218,2,4,8,0],[2832218,1,8,1,0],[2832218,1,8,0,0],[2832218,0,8,1,0],[2832218,0,4,0,0],[2832218,1,4,1,0],[2832218,0,4,1,0],[2865148,2,0,1,1],[2865148,1,1,1,0],[2872529,2,6,8,2],[2872529,1,8,1,0],[2872529,0,6,0,0],[2872529,1,6,1,0],[2872529,0,6,1,0],[2890148,2,0,2,1],[2890148,1,2,1,0],[2930030,2,8,9,0],[2930030,0,8,0,0],[2930030,1,8,0,0],[2930030,0,8,1,0],[2940326,2,4,8,0],[2940326,1,8,1,0],[2940326,0,4,0,0],[2940326,1,4,0,0],[2940326,0,4,1,0],[2986295,2,2,4,1],[2986295,1,4,1,0],[2986295,0,2,0,0],[2986295,1,2,0,0],[2986295,0,2,1,0],[2998938,2,0,2,0],[2998938,1,2,1,0],[3010680,2,5,8,1],[3010680,1,8,2,0],[3010680,0,5,0,0],[3017770,2,4,8,0],[3017770,1,8,3,0],[3017770,0,4,0,0],[3017770,1,4,0,0],[3017770,0,4,1,0],[3023327,2,8,9,2],[3023327,0,8,0,0],[3023327,1,8,2,0],[3023327,0,8,1,0],[3028292,2,1,4,0],[3028292,1,4,1,0],[3028292,0,1,0,0],[3028292,1,1,0,0],[3028292,0,1,1,0],[3079144,2,4,5,1],[3079144,1,5,1,0],[3079144,1,5,0,0],[3079144,0,5,1,0],[3079144,0,4,0,0],[3079144,1,4,0,0],[3079144,0,4,1,0],[3100420,2,3,4,1],[3100420,1,4,1,0],[3100420,0,3,0,0],[3118302,2,8,9,0],[3118302,0,8,0,0],[3118302,1,8,1,0],[3118302,0,8,1,0],[3137549,2,4,8,0],[3137549,1,8,2,0],[3137549,0,4,0,0],[3137549,1,4,0,0],[3137549,0,4,1,0],[3164315,2,1,4,1],[3164315,1,4,1,0],[3164315,0,1,0,0],[3180784,2,8,9,1],[3180784,0,8,0,0],[3180784,1,8,1,0],[3180784,0,8,1,0],[3192003,2,2,4,1],[3192003,1,4,2,0],[3192003,0,2,0,0],[3192003,1,2,0,0],[3192003,0,2,1,0],[3202364,2,4,5,1],[3202364,1,5,1,0],[3202364,0,4,0,0],[3202364,1,4,1,0],[3202364,0,4,1,0],[3206704,2,0,1,0],[3206704,1,1,1,0],[3206704,1,1,0,0],[3206704,0,1,1,0],[3280481,2,8,9,0],[3280481,0,8,0,0],[3280481,1,8,0,0],[3280481,0,8,1,0],[3284951,2,0,1,1],[3284951,1,1,1,0],[3285650,2,4,6,1],[3285650,1,6,2,0],[3285650,0,4,0,0],[3285650,1,4,0,0],[3285650,0,4,1,0],[3293488,2,2,4,0],[3293488,1,4,1,0],[3293488,0,2,0,0],[3296320,2,6,8,2],[3296320,1,8,1,0],[3296320,0,6,0,0],[3296320,1,6,1,0],[3296320,0,6,1,0],[3322263,2,0,2,1],[3322263,1,2,1,0],[3322263,1,2,0,0],[3322263,0,2,1,0],[3366940,2,4,7,1],[3366940,1,7,1,0],[3366940,0,4,0,0],[3366940,1,4,0,0],[3366940,0,4,1,0],[3371640,2,8,9,0],[3371640,0,8,0,0],[3371640,1,8,0,0],[3371640,0,8,1,0],[3443134,2,4,8,0],[3443134,1,8,1,0],[3443134,0,4,0,0],[3473095,2,8,9,2],[3473095,0,8,0,0],[3473095,1,8,0,0],[3473095,0,8,1,0],[3478471,2,1,4,0],[3478471,1,4,1,0],[3478471,1,4,0,0],[3478471,0,4,1,0],[3478471,0,1,0,0],[3478471,1,1,0,0],[3478471,0,1,1,0],[3507296,2,2,4,1],[3507296,1,4,1,0],[3507296,0,2,0,0],[3531988,2,0,1,1],[3531988,1,1,1,0],[3563694,2,4,8,0],[3563694,1,8,1,0],[3563694,0,4,0,0],[3563694,1,4,0,0],[3563694,0,4,1,0],[3582657,2,8,9,0],[3582657,0,8,0,0],[3582657,1,8,0,0],[3582657,0,8,1,0],[3608263,2,6,8,1],[3608263,1,8,1,0],[3608263,0,6,0,0],[3608263,1,6,0,0],[3608263,0,6,1,0],[3623639,0,1,3,0],[3670979,2,8,9,0],[3670979,0,8,0,0],[3670979,1,8,0,0],[3670979,0,8,1,0],[3674431,2,0,2,0],[3674431,1,2,1,0],[3674431,1,2,0,0],[3674431,0,2,1,0],[3688086,2,4,7,1],[3688086,1,7,2,0],[3688086,0,4,0,0],[3744658,2,8,9,1],[3744658,0,8,0,0],[3800236,2,5,8,1],[3800236,1,8,1,0],[3800236,1,8,0,0],[3800236,0,8,1,0],[3800236,0,5,0,0],[3800236,1,5,0,0],[3800236,0,5,1,0],[3803093,2,0,2,1],[3803093,1,2,1,0],[3849571,2,0,3,1],[3849571,1,3,1,0],[3849571,1,3,0,0],[3849571,0,3,1,0],[3855903,2,8,9,1],[3855903,0,8,0,0],[3899246,2,2,4,0],[3899246,1,4,1,0],[3899246,1,4,0,0],[3899246,0,4,1,0],[3899246,0,2,0,0],[3899246,1,2,0,0],[3899246,0,2,1,0],[3923828,2,0,2,1],[3923828,1,2,1,0],[3927866,2,0,3,1],[3927866,1,3,1,0],[4011199,0,1,1,0],[4011764,2,4,8,0],[4011764,1,8,1,0],[4011764,1,8,0,0],[4011764,0,8,1,0],[4011764,0,4,0,0],[4030155,2,6,8,1],[4030155,1,8,1,0],[4030155,0,6,0,0],[4071502,2,3,4,1],[4071502,1,4,1,0],[4071502,1,4,0,0],[4071502,0,4,1,0],[4071502,0,3,0,0],[4071502,1,3,0,0],[4071502,0,3,1,0],[4088214,2,2,4,1],[4088214,1,4,1,0],[4088214,0,2,0,0],[4088214,1,2,0,0],[4088214,0,2,1,0],[4104422,2,5,8,1],[4104422,1,8,2,0],[4104422,0,5,0,0],[4112940,2,8,9,0],[4112940,0,8,0,0],[4112940,1,8,1,0],[4112940,0,8,1,0],[4177426,2,0,2,2],[4177426,1,2,1,0],[4181177,2,4,5,1],[4181177,1,5,1,0],[4181177,1,5,0,0],[4181177,0,5,1,0],[4181177,0,4,0,0],[4181177,1,4,0,0],[4181177,0,4,1,0],[4182022,2,0,3,1],[4182022,1,3,1,0],[4229876,2,8,9,1],[4229876,0,8,0,0],[4229876,1,8,0,0],[4229876,0,8,1,0],[4265649,2,2,4,1],[4265649,1,4,1,0],[4265649,0,2,0,0],[4265649,1,2,0,0],[4265649,0,2,1,0],[4274982,2,4,5,1],[4274982,1,5,1,0],[4274982,0,4,0,0],[4274982,1,4,0,0],[4274982,0,4,1,0],[4283732,2,1,4,1],[4283732,1,4,1,0],[4283732,0,1,0,0],[4283732,1,1,0,0],[4283732,0,1,1,0],[4329519,2,8,9,1],[4329519,0,8,0,0],[4341846,2,0,1,1],[4341846,1,1,1,0],[4375810,2,4,5,1],[4375810,1,5,2,0],[4375810,0,4,0,0],[4375810,1,4,0,0],[4375810,0,4,1,0],[4392976,2,0,2,0],[4392976,1,2,1,0],[4402806,2,0,1,2],[4402806,1,1,2,0],[4410668,2,3,4,1],[4410668,1,4,1,0],[4410668,0,3,0,0],[4410668,1,3,0,0],[4410668,0,3,1,0],[4455297,2,0,3,0],[4455297,1,3,1,0],[4478079,2,1,4,1],[4478079,1,4,2,0],[4478079,0,1,0,0],[4478079,1,1,1,0],[4478079,0,1,1,0],[4488781,2,4,7,1],[4488781,1,7,3,0],[4488781,0,4,0,0],[4488781,1,4,1,0],[4488781,0,4,1,0],[4509463,2,2,4,2],[4509463,1,4,2,0],[4509463,0,2,0,0],[4509463,1,2,0,0],[4509463,0,2,1,0],[4555607,0,4,2,0],[4598750,2,0,2,2],[4598750,1,2,1,0],[4609571,2,5,8,1],[4609571,1,8,1,0],[4609571,1,8,0,0],[4609571,0,8,1,0],[4609571,0,5,0,0],[4609571,1,5,1,0],[4609571,0,5,1,0],[4655773,2,3,4,1],[4655773,1,4,3,0],[4655773,0,3,0,0],[4655773,1,3,0,0],[4655773,0,3,1,0],[4655843,2,0,3,1],[4655843,1,3,1,0],[4677884,2,1,4,2],[4677884,1,4,4,0],[4677884,0,1,0,0],[4677884,1,1,0,0],[4677884,0,1,1,0],[4696477,2,8,9,1],[4696477,0,8,0,0],[4771344,0,7,1,0],[4772165,2,2,4,0],[4772165,1,4,5,0],[4772165,0,2,0,0],[4772165,1,2,0,0],[4772165,0,2,1,0],[4781270,2,0,1,0],[4781270,1,1,1,0],[4868594,2,3,4,0],[4868594,1,4,6,0],[4868594,0,3,0,0],[4868594,1,3,0,0],[4868594,0,3,1,0],[4921257,0,1,2,0],[4928973,2,0,2,1],[4928973,1,2,1,0],[4951625,2,7,8,1],[4951625,1,8,1,0],[4951625,1,8,0,0],[4951625,0,8,1,0],[4951625,0,7,0,0],[4951625,1,7,2,0],[4951625,0,7,1,0],[4951625,2,4,7,1],[4951625,1,7,3,0],[4951625,0,4,0,0],[4951625,1,4,5,0],[4951625,0,4,1,0],[4951625,2,1,4,1],[4951625,1,4,6,0],[4951625,0,1,0,0],[4951625,1,1,0,0],[4951625,0,1,1,0],[4972306,0,2,2,0],[5023384,2,8,9,1],[5023384,0,8,0,0],[5026174,2,5,8,1],[5026174,1,8,1,0],[5026174,1,8,0,0],[5026174,0,8,1,0],[5026174,0,5,0,0],[5026174,1,5,0,0],[5026174,0,5,1,0],[5047388,2,4,1,2],[5047388,1,1,1,0],[5047388,0,4,0,0],[5047388,1,4,5,0],[5047388,0,4,1,0],[5047388,2,2,4,2],[5047388,1,4,6,0],[5047388,0,2,0,0],[5047388,1,2,0,0],[5047388,0,2,1,0],[5075226,2,0,2,1],[5075226,1,2,1,0],[5094527,2,8,9,1],[5094527,0,8,0,0],[5113937,2,4,6,2],[5113937,1,6,1,0],[5113937,1,6,0,0],[5113937,0,6,1,0],[5113937,0,4,0,0],[5113937,1,4,5,0],[5113937,0,4,1,0],[5145063,2,1,4,0],[5145063,1,4,6,0],[5145063,0,1,0,0],[5145063,1,1,0,0],[5145063,0,1,1,0],[5168200,0,3,2,0],[5204146,2,4,5,2],[5204146,1,5,1,0],[5204146,0,4,0,0],[5204146,1,4,5,0],[5204146,0,4,1,0],[5204146,2,3,4,1],[5204146,1,4,6,0],[5204146,0,3,0,0],[5284193,0,4,2,0],[5300369,0,2,2,0],[5355903,0,1,2,0],[5418148,2,7,8,1],[5418148,1,8,1,0],[5418148,1,8,0,0],[5418148,0,8,1,0],[5418148,0,7,0,0],[5418148,1,7,2,0],[5418148,0,7,1,0],[5418148,2,4,7,1],[5418148,1,7,3,0],[5418148,0,4,0,0],[5418148,1,4,5,0],[5418148,0,4,1,0],[5418148,2,2,4,1],[5418148,1,4,6,0],[5418148,0,2,0,0],[5418148,1,2,0,0],[5418148,0,2,1,0],[5444666,2,0,1,1],[5444666,1,1,1,0],[5449743,2,0,2,0],[5449743,1,2,1,0],[5457701,2,5,8,1],[5457701,1,8,1,0],[5457701,0,5,0,0],[5457701,1,5,0,0],[5457701,0,5,1,0],[5477596,2,0,3,2],[5477596,1,3,1,0],[5477596,1,3,0,0],[5477596,0,3,1,0],[5489689,2,0,3,1],[5489689,1,3,1,0],[5495909,0,4,2,0],[5505254,2,8,9,1],[5505254,0,8,0,0],[5505254,1,8,0,0],[5505254,0,8,1,0],[5594552,2,8,9,1],[5594552,0,8,0,0],[5618206,2,0,1,1],[5618206,1,1,2,0],[5629507,2,6,8,2],[5629507,1,8,1,0],[5629507,1,8,0,0],[5629507,0,8,1,0],[5629507,0,6,0,0],[5724096,2,8,9,2],[5724096,0,8,0,0],[5758070,0,2,2,0],[5825427,0,3,2,0],[5831766,2,0,2,1],[5831766,1,2,2,0],[5909192,2,5,8,2],[5909192,1,8,1,0],[5909192,1,8,0,0],[5909192,0,8,1,0],[5909192,0,5,0,0],[5942562,2,7,8,1],[5942562,1,8,1,0],[5942562,0,7,0,0],[5942562,1,7,2,0],[5942562,0,7,1,0],[5942562,2,4,7,1],[5942562,1,7,3,0],[5942562,0,4,0,0],[5942562,1,4,5,0],[5942562,0,4,1,0],[5942562,2,1,4,2],[5942562,1,4,6,0],[5942562,0,1,0,0],[5942562,1,1,1,0],[5942562,0,1,1,0],[5983261,2,8,9,2],[5983261,0,8,0,0],[5983261,1,8,0,0],[5983261,0,8,1,0],[6045348,2,4,5,1],[6045348,1,5,1,0],[6045348,1,5,0,0],[6045348,0,5,1,0],[6045348,0,4,0,0],[6045348,1,4,5,0],[6045348,0,4,1,0],[6045348,2,2,4,1],[6045348,1,4,6,0],[6045348,0,2,0,0],[6045348,1,2,1,0],[6045348,0,2,1,0],[6073270,2,8,9,1],[6073270,0,8,0,0],[6129582,2,4,6,2],[6129582,1,6,1,0],[6129582,1,6,0,0],[6129582,0,6,1,0],[6129582,0,4,0,0],[6129582,1,4,5,0],[6129582,0,4,1,0],[6129582,2,3,4,2],[6129582,1,4,6,0],[6129582,0,3,0,0],[6129582,1,3,0,0],[6129582,0,3,1,0],[6216972,2,4,5,1],[6216972,1,5,1,0],[6216972,0,4,0,0],[6216972,1,4,5,0],[6216972,0,4,1,0],[6224520,2,0,3,1],[6224520,1,3,1,0],[6284948,2,1,4,1],[6284948,1,4,6,0],[6284948,0,1,0,0],[6284948,1,1,0,0],[6284948,0,1,1,0],[6291337,2,4,6,2],[6291337,1,6,1,0],[6291337,0,4,0,0],[6291337,1,4,5,0],[6291337,0,4,1,0],[6334810,2,0,1,1],[6334810,1,1,1,0],[6361645,2,2,4,1],[6361645,1,4,6,0],[6361645,0,2,0,0],[6361645,1,2,0,0],[6361645,0,2,1,0],[6388939,2,4,6,1],[6388939,1,6,2,0],[6388939,0,4,0,0],[6388939,1,4,5,0],[6388939,0,4,1,0],[6414632,2,3,4,1],[6414632,1,4,6,0],[6414632,0,3,0,0],[6414632,1,3,0,0],[6414632,0,3,1,0],[6432995,0,1,2,0],[6438525,2,5,8,1],[6438525,1,8,1,0],[6438525,1,8,0,0],[6438525,0,8,1,0],[6438525,0,5,0,0],[6438525,1,5,0,0],[6438525,0,5,1,0],[6472515,2,4,5,1],[6472515,1,5,1,0],[6472515,0,4,0,0],[6472515,1,4,5,0],[6472515,0,4,1,0],[6472515,2,1,4,1],[6472515,1,4,6,0],[6472515,0,1,0,0],[6472515,1,1,0,0],[6472515,0,1,1,0],[6475636,0,6,3,0],[6499628,2,7,8,1],[6499628,1,8,1,0],[6499628,0,7,0,0],[6499628,1,7,2,0],[6499628,0,7,1,0],[6538878,0,6,1,0],[6545173,2,4,6,1],[6545173,1,6,3,0],[6545173,0,4,0,0],[6545173,1,4,5,0],[6545173,0,4,1,0],[6551809,2,8,9,1],[6551809,0,8,0,0],[6551809,1,8,0,0],[6551809,0,8,1,0],[6587598,2,2,4,0],[6587598,1,4,6,0],[6587598,0,2,0,0],[6632070,2,8,9,1],[6632070,0,8,0,0],[6642389,2,4,7,1],[6642389,1,7,3,0],[6642389,0,4,0,0],[6642389,1,4,5,0],[6642389,0,4,1,0],[6651707,2,3,4,1],[6651707,1,4,6,0],[6651707,0,3,0,0],[6660164,2,0,1,1],[6660164,1,1,1,0],[6680477,2,6,8,2],[6680477,1,8,1,0],[6680477,1,8,0,0],[6680477,0,8,1,0],[6680477,0,6,0,0],[6680477,1,6,2,0],[6680477,0,6,1,0],[6681693,2,0,2,1],[6681693,1,2,1,0],[6681693,1,2,0,0],[6681693,0,2,1,0],[6725935,2,4,5,1],[6725935,1,5,2,0],[6725935,0,4,0,0],[6725935,1,4,5,0],[6725935,0,4,1,0],[6759483,2,1,4,1],[6759483,1,4,6,0],[6759483,0,1,0,0],[6759483,1,1,0,0],[6759483,0,1,1,0],[6763510,2,5,8,1],[6763510,1,8,1,0],[6763510,0,5,0,0],[6763510,1,5,1,0],[6763510,0,5,1,0],[6781502,2,8,9,2],[6781502,0,8,0,0],[6781502,1,8,0,0],[6781502,0,8,1,0],[6785502,2,0,1,0],[6785502,1,1,1,0],[6818173,0,4,2,0],[6835155,2,8,9,1],[6835155,0,8,0,0],[6844348,2,0,2,1],[6844348,1,2,1,0],[6849508,2,7,8,1],[6849508,1,8,1,0],[6849508,1,8,0,0],[6849508,0,8,1,0],[6849508,0,7,0,0],[6849508,1,7,2,0],[6849508,0,7,1,0],[6849508,2,4,7,1],[6849508,1,7,3,0],[6849508,0,4,0,0],[6849508,1,4,5,0],[6849508,0,4,1,0],[6909399,0,4,2,0],[6928299,2,2,4,1],[6928299,1,4,6,0],[6928299,0,2,0,0],[6928299,1,2,0,0],[6928299,0,2,1,0],[6949151,2,8,9,1],[6949151,0,8,0,0],[7028727,0,2,3,0],[7039386,0,2,1,0],[7065132,0,1,2,0],[7194135,2,0,2,1],[7194135,1,2,1,0],[7225375,2,7,8,1],[7225375,1,8,1,0],[7225375,1,8,0,0],[7225375,0,8,1,0],[7225375,0,7,0,0],[7225375,1,7,2,0],[7225375,0,7,1,0],[7225375,2,4,7,1],[7225375,1,7,3,0],[7225375,0,4,0,0],[7225375,1,4,5,0],[7225375,0,4,1,0],[7225375,2,1,4,1],[7225375,1,4,6,0],[7225375,0,1,0,0],[7225375,1,1,0,0],[7225375,0,1,1,0],[7258307,0,1,3,0],[7263833,2,5,8,1],[7263833,1,8,1,0],[7263833,0,5,0,0],[7263833,1,5,0,0],[7263833,0,5,1,0],[7304818,0,1,1,0],[7316169,0,5,3,0],[7320411,2,6,8,2],[7320411,1,8,2,0],[7320411,0,6,0,0],[7320411,1,6,1,0],[7320411,0,6,1,0],[7325358,0,4,2,0],[7364937,2,8,9,1],[7364937,0,8,0,0],[7364937,1,8,1,0],[7364937,0,8,1,0],[7399030,0,2,2,0],[7463197,2,8,9,1],[7463197,0,8,0,0],[7463197,1,8,0,0],[7463197,0,8,1,0],[7528429,2,7,8,1],[7528429,1,8,1,0],[7528429,0,7,0,0],[7528429,1,7,2,0],[7528429,0,7,1,0],[7528429,2,4,7,1],[7528429,1,7,3,0],[7528429,0,4,0,0],[7528429,1,4,5,0],[7528429,0,4,1,0],[7528429,2,2,4,1],[7528429,1,4,6,0],[7528429,0,2,0,0],[7528429,1,2,0,0],[7528429,0,2,1,0],[7551257,2,8,9,2],[7551257,0,8,0,0],[7551257,1,8,0,0],[7551257,0,8,1,0],[7552357,0,1,2,0],[7583375,2,0,1,1],[7583375,1,1,1,0],[7589630,2,0,2,1],[7589630,1,2,1,0],[7639751,2,8,9,1],[7639751,0,8,0,0],[7640546,2,4,6,1],[7640546,1,6,2,0],[7640546,0,4,0,0],[7640546,1,4,5,0],[7640546,0,4,1,0],[7640546,2,1,4,0],[7640546,1,4,6,0],[7640546,0,1,0,0],[7640546,1,1,0,0],[7640546,0,1,1,0],[7681509,2,0,1,1],[7681509,1,1,1,0],[7723558,0,2,2,0],[7747933,0,5,1,0],[7756547,2,6,8,1],[7756547,1,8,1,0],[7756547,1,8,0,0],[7756547,0,8,1,0],[7756547,0,6,0,0],[7756547,1,6,1,0],[7756547,0,6,1,0],[7769599,0,4,2,0],[7836990,2,8,9,1],[7836990,0,8,0,0],[7912011,0,1,2,0],[7941399,2,7,8,1],[7941399,1,8,1,0],[7941399,1,8,0,0],[7941399,0,8,1,0],[7941399,0,7,0,0],[7941399,1,7,2,0],[7941399,0,7,1,0],[7941399,2,4,7,1],[7941399,1,7,3,0],[7941399,0,4,0,0],[7941399,1,4,5,0],[7941399,0,4,1,0],[7941399,2,2,4,1],[7941399,1,4,6,0],[7941399,0,2,0,0],[7941399,1,2,0,0],[7941399,0,2,1,0],[8022827,2,4,6,1],[8022827,1,6,2,0],[8022827,0,4,0,0],[8022827,1,4,5,0],[8022827,0,4,1,0],[8022827,2,1,4,1],[8022827,1,4,6,0],[8022827,0,1,0,0],[8022827,1,1,0,0],[8022827,0,1,1,0],[8056997,2,8,9,1],[8056997,0,8,0,0],[8066665,2,4,6,1],[8066665,1,6,3,0],[8066665,0,4,0,0],[8066665,1,4,5,0],[8066665,0,4,1,0],[8099835,2,0,1,1],[8099835,1,1,1,0],[8125301,2,2,4,1],[8125301,1,4,6,0],[8125301,0,2,0,0],[8130977,2,6,8,1],[8130977,1,8,1,0],[8130977,1,8,0,0],[8130977,0,8,1,0],[8130977,0,6,0,0],[8130977,1,6,2,0],[8130977,0,6,1,0],[8139753,2,4,6,1],[8139753,1,6,3,0],[8139753,0,4,0,0],[8139753,1,4,5,0],[8139753,0,4,1,0],[8166291,2,5,8,1],[8166291,1,8,1,0],[8166291,0,5,0,0],[8214816,2,1,4,1],[8214816,1,4,6,0],[8214816,0,1,0,0],[8214816,1,1,0,0],[8214816,0,1,1,0],[8215722,2,8,9,1],[8215722,0,8,0,0],[8215722,1,8,0,0],[8215722,0,8,1,0],[8245609,0,4,2,0],[8284692,2,8,9,1],[8284692,0,8,0,0],[8289288,2,7,8,1],[8289288,1,8,1,0],[8289288,1,8,0,0],[8289288,0,8,1,0],[8289288,0,7,0,0],[8289288,1,7,2,0],[8289288,0,7,1,0],[8395277,2,8,9,1],[8395277,0,8,0,0],[8458347,2,0,1,1],[8458347,1,1,1,0],[8485380,0,1,2,0],[8548480,2,0,2,1],[8548480,1,2,1,0],[8548480,1,2,0,0],[8548480,0,2,1,0],[8678381,2,7,8,1],[8678381,1,8,1,0],[8678381,1,8,0,0],[8678381,0,8,1,0],[8678381,0,7,0,0],[8678381,1,7,1,0],[8678381,0,7,1,0],[8696475,2,6,8,1],[8696475,1,8,1,0],[8696475,0,6,0,0],[8696475,1,6,2,0],[8696475,0,6,1,0],[8696475,2,4,6,1],[8696475,1,6,3,0],[8696475,0,4,0,0],[8696475,1,4,5,0],[8696475,0,4,1,0],[8696475,2,1,4,1],[8696475,1,4,6,0],[8696475,0,1,0,0],[8696475,1,1,0,0],[8696475,0,1,1,0],[8708138,2,0,1,0],[8708138,1,1,1,0],[8736606,0,2,2,0],[8777027,2,8,9,1],[8777027,0,8,0,0],[8777027,1,8,0,0],[8777027,0,8,1,0],[8787969,0,4,2,0],[8803398,2,0,2,1],[8803398,1,2,1,0],[8886159,2,0,3,1],[8886159,1,3,1,0],[8886159,1,3,0,0],[8886159,0,3,1,0],[8895489,2,8,9,1],[8895489,0,8,0,0],[8920356,0,1,2,0],[8982601,2,6,8,1],[8982601,1,8,1,0],[8982601,1,8,0,0],[8982601,0,8,1,0],[8982601,0,6,0,0],[8982601,1,6,2,0],[8982601,0,6,1,0],[8982601,2,4,6,1],[8982601,1,6,3,0],[8982601,0,4,0,0],[8982601,1,4,5,0],[8982601,0,4,1,0],[8982601,2,2,4,1],[8982601,1,4,6,0],[8982601,0,2,0,0],[8982601,1,2,0,0],[8982601,0,2,1,0],[9023624,0,4,2,0],[9063045,2,7,8,1],[9063045,1,8,1,0],[9063045,0,7,0,0],[9063045,1,7,0,0],[9063045,0,7,1,0],[9078631,2,8,9,1],[9078631,0,8,0,0],[9078631,1,8,0,0],[9078631,0,8,1,0],[9152849,2,0,2,1],[9152849,1,2,1,0],[9168223,2,8,9,1],[9168223,0,8,0,0],[9202692,0,3,2,0],[9233278,0,2,2,0],[9338165,2,6,8,1],[9338165,1,8,1,0],[9338165,1,8,0,0],[9338165,0,8,1,0],[9338165,0,6,0,0],[9338165,1,6,2,0],[9338165,0,6,1,0],[9338165,2,4,6,1],[9338165,1,6,3,0],[9338165,0,4,0,0],[9338165,1,4,5,0],[9338165,0,4,1,0],[9338165,2,1,4,1],[9338165,1,4,6,0],[9338165,0,1,0,0],[9338165,1,1,0,0],[9338165,0,1,1,0],[9403839,2,4,5,1],[9403839,1,5,1,0],[9403839,1,5,0,0],[9403839,0,5,1,0],[9403839,0,4,0,0],[9403839,1,4,5,0],[9403839,0,4,1,0],[9403839,2,3,4,1],[9403839,1,4,6,0],[9403839,0,3,0,0],[9409068,2,0,1,1],[9409068,1,1,1,0],[9417152,2,8,9,1],[9417152,0,8,0,0],[9484401,2,4,5,1],[9484401,1,5,1,0],[9484401,0,4,0,0],[9484401,1,4,5,0],[9484401,0,4,1,0],[9484401,2,2,4,1],[9484401,1,4,6,0],[9484401,0,2,0,0],[9484401,1,2,0,0],[9484401,0,2,1,0],[9519988,2,7,8,1],[9519988,1,8,1,0],[9519988,1,8,0,0],[9519988,0,8,1,0],[9519988,0,7,0,0],[9558457,2,4,7,1],[9558457,1,7,1,0],[9558457,1,7,0,0],[9558457,0,7,1,0],[9558457,0,4,0,0],[9558457,1,4,5,0],[9558457,0,4,1,0],[9590477,2,8,9,1],[9590477,0,8,0,0],[9591312,2,0,2,0],[9591312,1,2,1,0],[9625191,2,1,4,0],[9625191,1,4,6,0],[9625191,0,1,0,0],[9625191,1,1,0,0],[9625191,0,1,1,0],[9644795,2,4,5,1],[9644795,1,5,2,0],[9644795,0,4,0,0],[9644795,1,4,5,0],[9644795,0,4,1,0],[9676158,2,5,8,1],[9676158,1,8,1,0],[9676158,1,8,0,0],[9676158,0,8,1,0],[9676158,0,5,0,0],[9676158,1,5,1,0],[9676158,0,5,1,0],[9686411,2,2,4,1],[9686411,1,4,6,0],[9686411,0,2,0,0],[9686411,1,2,0,0],[9686411,0,2,1,0],[9702854,2,4,8,0],[9702854,1,8,1,0],[9702854,0,4,0,0],[9702854,1,4,5,0],[9702854,0,4,1,0],[9761642,2,4,7,1],[9761642,1,7,1,0],[9761642,0,4,0,0],[9761642,1,4,4,0],[9761642,0,4,1,0],[9783874,2,8,9,1],[9783874,0,8,0,0],[9783874,1,8,0,0],[9783874,0,8,1,0],[9828712,2,6,8,1],[9828712,1,8,1,0],[9828712,0,6,0,0],[9828712,1,6,2,0],[9828712,0,6,1,0],[9867909,2,2,4,0],[9867909,1,4,5,0],[9867909,0,2,0,0],[9873031,2,8,9,0],[9873031,0,8,0,0],[9873031,1,8,0,0],[9873031,0,8,1,0],[9874779,2,4,8,0],[9874779,1,8,1,0],[9874779,0,4,0,0],[9874779,1,4,4,0],[9874779,0,4,1,0],[9902726,2,1,4,1],[9902726,1,4,5,0],[9902726,0,1,0,0],[9959771,2,7,8,1],[9959771,1,8,2,0],[9959771,0,7,0,0],[9959771,1,7,0,0],[9959771,0,7,1,0],[9981775,2,4,8,0],[9981775,1,8,3,0],[9981775,0,4,0,0],[9981775,1,4,4,0],[9981775,0,4,1,0],[9992913,2,8,9,1],[9992913,0,8,0,0],[9992913,1,8,2,0],[9992913,0,8,1,0],[9998385,2,5,8,1],[9998385,1,8,3,0],[9998385,0,5,0,0],[9998385,1,5,0,0],[9998385,0,5,1,0],[10071035,2,8,9,0],[10071035,0,8,0,0],[10071035,1,8,2,0],[10071035,0,8,1,0],[10077862,2,4,6,1],[10077862,1,6,3,0],[10077862,0,4,0,0],[10077862,1,4,3,0],[10077862,0,4,1,0],[10084467,2,0,1,1],[10084467,1,1,1,0],[10084467,1,1,0,0],[10084467,0,1,1,0],[10142055,2,0,1,0],[10142055,1,1,1,0],[10142637,2,8,9,1],[10142637,0,8,0,0],[10142637,1,8,1,0],[10142637,0,8,1,0],[10158554,2,4,8,0],[10158554,1,8,2,0],[10158554,0,4,0,0],[10158554,1,4,2,0],[10158554,0,4,1,0],[10174213,2,0,2,1],[10174213,1,2,1,0],[10174213,1,2,0,0],[10174213,0,2,1,0],[10177533,2,6,8,1],[10177533,1,8,3,0],[10177533,0,6,0,0],[10177533,1,6,2,0],[10177533,0,6,1,0],[10200458,2,8,9,0],[10200458,0,8,0,0],[10200458,1,8,2,0],[10200458,0,8,1,0],[10251902,2,4,8,0],[10251902,1,8,3,0],[10251902,0,4,0,0],[10251902,1,4,1,0],[10251902,0,4,1,0],[10260717,2,1,4,1],[10260717,1,4,2,0],[10260717,0,1,0,0],[10260717,1,1,0,0],[10260717,0,1,1,0],[10311796,2,8,9,1],[10311796,0,8,0,0],[10311796,1,8,2,0],[10311796,0,8,1,0],[10346984,2,0,1,1],[10346984,1,1,1,0],[10353271,2,4,8,0],[10353271,1,8,3,0],[10353271,0,4,0,0],[10353271,1,4,1,0],[10353271,0,4,1,0],[10390258,2,0,2,0],[10390258,1,2,1,0],[10393298,2,8,9,0],[10393298,0,8,0,0],[10393298,1,8,2,0],[10393298,0,8,1,0],[10394911,2,7,8,1],[10394911,1,8,3,0],[10394911,0,7,0,0],[10447390,2,4,6,1],[10447390,1,6,3,0],[10447390,0,4,0,0],[10447390,1,4,0,0],[10447390,0,4,1,0],[10487377,2,8,9,1],[10487377,0,8,0,0],[10487377,1,8,2,0],[10487377,0,8,1,0],[10490480,2,1,4,0],[10490480,1,4,1,0],[10490480,0,1,0,0],[10490480,1,1,0,0],[10490480,0,1,1,0],[10495914,2,2,4,1],[10495914,1,4,2,0],[10495914,0,2,0,0],[10495914,1,2,0,0],[10495914,0,2,1,0],[10496688,2,0,1,0],[10496688,1,1,1,0],[10497322,0,2,3,0],[10521400,0,2,1,0],[10539453,2,5,8,1],[10539453,1,8,3,0],[10539453,0,5,0,0],[10549812,2,4,8,0],[10549812,1,8,4,0],[10549812,0,4,0,0],[10549812,1,4,1,0],[10549812,0,4,1,0],[10584757,2,8,9,0],[10584757,0,8,0,0],[10584757,1,8,3,0],[10584757,0,8,1,0],[10635139,2,4,5,1],[10635139,1,5,1,0],[10635139,1,5,0,0],[10635139,0,5,1,0],[10635139,0,4,0,0],[10635139,1,4,0,0],[10635139,0,4,1,0],[10672348,2,6,8,1],[10672348,1,8,4,0],[10672348,0,6,0,0],[10672348,1,6,2,0],[10672348,0,6,1,0],[10681726,2,8,9,0],[10681726,0,8,0,0],[10681726,1,8,3,0],[10681726,0,8,1,0],[10717685,2,4,8,0],[10717685,1,8,4,0],[10717685,0,4,0,0],[10767875,2,2,4,0],[10767875,1,4,1,0],[10767875,1,4,0,0],[10767875,0,4,1,0],[10767875,0,2,0,0],[10775124,2,8,9,1],[10775124,0,8,0,0],[10775124,1,8,3,0],[10775124,0,8,1,0],[10789042,2,1,4,1],[10789042,1,4,1,0],[10789042,0,1,0,0],[10789042,1,1,0,0],[10789042,0,1,1,0],[10837827,2,4,8,0],[10837827,1,8,4,0],[10837827,0,4,0,0],[10837827,1,4,0,0],[10837827,0,4,1,0],[10860799,2,8,9,1],[10860799,0,8,0,0],[10860799,1,8,3,0],[10860799,0,8,1,0],[10919173,2,4,5,1],[10919173,1,5,1,0],[10919173,0,4,0,0],[10937693,2,8,9,0],[10937693,0,8,0,0],[10937693,1,8,2,0],[10937693,0,8,1,0],[10997505,2,8,9,1],[10997505,0,8,0,0],[10997505,1,8,1,0],[10997505,0,8,1,0],[11025751,2,6,8,1],[11025751,1,8,2,0],[11025751,0,6,0,0],[11025751,1,6,1,0],[11025751,0,6,1,0],[11102443,2,8,9,0],[11102443,0,8,0,0],[11102443,1,8,1,0],[11102443,0,8,1,0],[11128114,2,1,4,0],[11128114,1,4,1,0],[11128114,1,4,0,0],[11128114,0,4,1,0],[11128114,0,1,0,0],[11180244,2,5,8,1],[11180244,1,8,2,0],[11180244,0,5,0,0],[11180244,1,5,0,0],[11180244,0,5,1,0],[11205038,2,8,9,0],[11205038,0,8,0,0],[11205038,1,8,1,0],[11205038,0,8,1,0],[11218610,2,4,8,0],[11218610,1,8,2,0],[11218610,0,4,0,0],[11254757,2,0,1,1],[11254757,1,1,1,0],[11254757,1,1,0,0],[11254757,0,1,1,0],[11277173,2,0,1,1],[11277173,1,1,1,0],[11302697,2,8,9,1],[11302697,0,8,0,0],[11302697,1,8,1,0],[11302697,0,8,1,0],[11388731,2,8,9,1],[11388731,0,8,0,0],[11388731,1,8,0,0],[11388731,0,8,1,0],[11428696,2,1,4,1],[11428696,1,4,1,0],[11428696,1,4,0,0],[11428696,0,4,1,0],[11428696,0,1,0,0],[11428696,1,1,0,0],[11428696,0,1,1,0],[11459629,2,6,8,1],[11459629,1,8,1,0],[11459629,0,6,0,0],[11459629,1,6,0,0],[11459629,0,6,1,0],[11485683,2,8,9,0],[11485683,0,8,0,0],[11485683,1,8,0,0],[11485683,0,8,1,0],[11525927,2,4,7,1],[11525927,1,7,1,0],[11525927,1,7,0,0],[11525927,0,7,1,0],[11525927,0,4,0,0],[11583719,2,8,9,1],[11583719,0,8,0,0],[11584083,2,1,4,1],[11584083,1,4,1,0],[11584083,1,4,0,0],[11584083,0,4,1,0],[11584083,0,1,0,0],[11661490,2,4,6,1],[11661490,1,6,1,0],[11661490,0,4,0,0],[11675217,2,0,1,0],[11675217,1,1,1,0],[11675217,1,1,0,0],[11675217,0,1,1,0],[11690225,2,5,8,1],[11690225,1,8,1,0],[11690225,1,8,0,0],[11690225,0,8,1,0],[11690225,0,5,0,0],[11803952,2,8,9,1],[11803952,0,8,0,0],[11862282,2,7,8,1],[11862282,1,8,1,0],[11862282,1,8,0,0],[11862282,0,8,1,0],[11862282,0,7,0,0],[11863980,2,1,4,0],[11863980,1,4,1,0],[11863980,1,4,0,0],[11863980,0,4,1,0],[11863980,0,1,0,0],[11923674,2,4,8,0],[11923674,1,8,1,0],[11923674,0,4,0,0],[11945396,2,0,1,0],[11945396,1,1,1,0],[11945396,1,1,0,0],[11945396,0,1,1,0],[11955402,2,8,9,1],[11955402,0,8,0,0],[11955402,1,8,0,0],[11955402,0,8,1,0],[12007991,2,6,8,1],[12007991,1,8,1,0],[12007991,0,6,0,0],[12007991,1,6,0,0],[12007991,0,6,1,0],[12067566,2,0,1,1],[12067566,1,1,1,0],[12100655,2,8,9,0],[12100655,0,8,0,0],[12100655,1,8,0,0],[12100655,0,8,1,0],[12117690,2,1,4,0],[12117690,1,4,1,0],[12117690,1,4,0,0],[12117690,0,4,1,0],[12117690,0,1,0,0],[12117690,1,1,0,0],[12117690,0,1,1,0],[12183916,2,8,9,1],[12183916,0,8,0,0],[12200833,2,4,8,0],[12200833,1,8,1,0],[12200833,1,8,0,0],[12200833,0,8,1,0],[12200833,0,4,0,0],[12257444,2,6,8,1],[12257444,1,8,1,0],[12257444,0,6,0,0],[12289408,2,0,1,1],[12289408,1,1,1,0],[12294882,2,8,9,0],[12294882,0,8,0,0],[12294882,1,8,0,0],[12294882,0,8,1,0],[12333607,2,0,2,1],[12333607,1,2,1,0],[12333607,1,2,0,0],[12333607,0,2,1,0],[12341227,2,1,4,1],[12341227,1,4,1,0],[12341227,1,4,0,0],[12341227,0,4,1,0],[12341227,0,1,0,0],[12341227,1,1,0,0],[12341227,0,1,1,0],[12368098,2,8,9,1],[12368098,0,8,0,0],[12397105,2,4,6,1],[12397105,1,6,1,0],[12397105,1,6,0,0],[12397105,0,6,1,0],[12397105,0,4,0,0],[12436091,0,2,3,0],[12523285,2,0,1,1],[12523285,1,1,1,0],[12531050,2,0,2,0],[12531050,1,2,1,0],[12631506,2,1,4,1],[12631506,1,4,1,0],[12631506,1,4,0,0],[12631506,0,4,1,0],[12631506,0,1,0,0],[12631506,1,1,0,0],[12631506,0,1,1,0],[12707467,2,0,1,0],[12707467,1,1,1,0],[12731524,2,4,5,1],[12731524,1,5,1,0],[12731524,1,5,0,0],[12731524,0,5,1,0],[12731524,0,4,0,0],[12762029,2,0,3,1],[12762029,1,3,1,0],[12762029,1,3,0,0],[12762029,0,3,1,0],[12762229,0,2,1,0],[12775558,2,0,3,1],[12775558,1,3,1,0],[12836211,2,0,1,0],[12836211,1,1,2,0],[12868502,2,0,2,1],[12868502,1,2,2,0],[12920303,2,0,3,2],[12920303,1,3,2,0],[12929672,2,6,8,1],[12929672,1,8,1,0],[12929672,1,8,0,0],[12929672,0,8,1,0],[12929672,0,6,0,0],[12932048,2,1,4,1],[12932048,1,4,1,0],[12932048,1,4,0,0],[12932048,0,4,1,0],[12932048,0,1,0,0],[12932048,1,1,1,0],[12932048,0,1,1,0],[12988232,2,2,4,1],[12988232,1,4,1,0],[12988232,0,2,0,0],[12988232,1,2,1,0],[12988232,0,2,1,0],[13001781,2,8,9,1],[13001781,0,8,0,0],[13005984,2,3,4,1],[13005984,1,4,2,0],[13005984,0,3,0,0],[13005984,1,3,1,0],[13005984,0,3,1,0],[13012276,2,4,6,1],[13012276,1,6,1,0],[13012276,1,6,0,0],[13012276,0,6,1,0],[13012276,0,4,0,0],[13012276,1,4,1,0],[13012276,0,4,1,0],[13017566,2,0,1,1],[13017566,1,1,2,0],[13044159,2,0,2,1],[13044159,1,2,2,0],[13078429,2,4,6,1],[13078429,1,6,1,0],[13078429,0,4,0,0],[13078429,1,4,0,0],[13078429,0,4,1,0],[13172277,2,0,3,1],[13172277,1,3,2,0],[13174050,2,5,8,1],[13174050,1,8,1,0],[13174050,1,8,0,0],[13174050,0,8,1,0],[13174050,0,5,0,0],[13181473,2,4,6,1],[13181473,1,6,2,0],[13181473,0,4,0,0],[13246511,2,1,4,0],[13246511,1,4,1,0],[13246511,1,4,0,0],[13246511,0,4,1,0],[13246511,0,1,0,0],[13246511,1,1,1,0],[13246511,0,1,1,0],[13269916,2,8,9,1],[13269916,0,8,0,0],[13317711,2,2,4,1],[13317711,1,4,1,0],[13317711,0,2,0,0],[13317711,1,2,1,0],[13317711,0,2,1,0],[13322529,2,3,4,2],[13322529,1,4,2,0],[13322529,0,3,0,0],[13322529,1,3,1,0],[13322529,0,3,1,0],[13332928,2,0,1,1],[13332928,1,1,2,0],[13371650,2,4,8,0],[13371650,1,8,1,0],[13371650,1,8,0,0],[13371650,0,8,1,0],[13371650,0,4,0,0],[13371650,1,4,1,0],[13371650,0,4,1,0],[13394577,2,0,2,1],[13394577,1,2,2,0],[13397266,2,6,8,1],[13397266,1,8,1,0],[13397266,0,6,0,0],[13397266,1,6,1,0],[13397266,0,6,1,0],[13450793,2,8,9,0],[13450793,0,8,0,0],[13450793,1,8,0,0],[13450793,0,8,1,0],[13464443,2,1,4,1],[13464443,1,4,2,0],[13464443,0,1,0,0],[13464443,1,1,1,0],[13464443,0,1,1,0],[13488074,2,4,6,2],[13488074,1,6,2,0],[13488074,0,4,0,0],[13488074,1,4,1,0],[13488074,0,4,1,0],[13513275,2,8,9,1],[13513275,0,8,0,0],[13541001,2,2,4,1],[13541001,1,4,2,0],[13541001,0,2,0,0],[13541001,1,2,1,0],[13541001,0,2,1,0],[13596462,2,3,4,1],[13596462,1,4,3,0],[13596462,0,3,0,0],[13596462,1,3,0,0],[13596462,0,3,1,0],[13596769,2,4,5,1],[13596769,1,5,1,0],[13596769,1,5,0,0],[13596769,0,5,1,0],[13596769,0,4,0,0],[13596769,1,4,2,0],[13596769,0,4,1,0],[13667043,2,4,7,1],[13667043,1,7,1,0],[13667043,1,7,0,0],[13667043,0,7,1,0],[13667043,0,4,0,0],[13667043,1,4,1,0],[13667043,0,4,1,0],[13726574,2,0,3,1],[13726574,1,3,1,0],[13749151,2,6,8,1],[13749151,1,8,1,0],[13749151,1,8,0,0],[13749151,0,8,1,0],[13749151,0,6,0,0],[13749151,1,6,1,0],[13749151,0,6,1,0],[13764979,2,4,2,1],[13764979,1,2,2,0],[13764979,0,4,0,0],[13764979,1,4,0,0],[13764979,0,4,1,0],[13775004,2,1,4,1],[13775004,1,4,1,0],[13775004,0,1,0,0],[13775004,1,1,0,0],[13775004,0,1,1,0],[13776507,2,3,4,1],[13776507,1,4,2,0],[13776507,0,3,0,0],[13776507,1,3,0,0],[13776507,0,3,1,0],[13828448,2,8,9,1],[13828448,0,8,0,0],[13843791,2,2,4,1],[13843791,1,4,3,0],[13843791,0,2,0,0],[13843791,1,2,1,0],[13843791,0,2,1,0],[13851548,2,4,6,1],[13851548,1,6,2,0],[13851548,0,4,0,0],[13851548,1,4,2,0],[13851548,0,4,1,0],[13933462,2,4,6,1],[13933462,1,6,3,0],[13933462,0,4,0,0],[13933462,1,4,1,0],[13933462,0,4,1,0],[13951198,2,0,1,1],[13951198,1,1,1,0],[14011968,2,4,5,1],[14011968,1,5,1,0],[14011968,0,4,0,0],[14011968,1,4,0,0],[14011968,0,4,1,0],[14053705,2,1,4,0],[14053705,1,4,1,0],[14053705,0,1,0,0],[14053705,1,1,0,0],[14053705,0,1,1,0],[14061296,2,7,8,1],[14061296,1,8,1,0],[14061296,1,8,0,0],[14061296,0,8,1,0],[14061296,0,7,0,0],[14067616,2,3,4,1],[14067616,1,4,2,0],[14067616,0,3,0,0],[14105274,2,5,8,1],[14105274,1,8,1,0],[14105274,0,5,0,0],[14105274,1,5,0,0],[14105274,0,5,1,0],[14125412,0,4,2,0],[14159358,2,2,4,1],[14159358,1,4,3,0],[14159358,0,2,0,0],[14159358,1,2,0,0],[14159358,0,2,1,0],[14173137,2,8,9,1],[14173137,0,8,0,0],[14173137,1,8,0,0],[14173137,0,8,1,0],[14227685,2,1,4,1],[14227685,1,4,4,0],[14227685,0,1,0,0],[14268215,0,5,3,0],[14270688,2,8,9,1],[14270688,0,8,0,0],[14296706,2,6,8,2],[14296706,1,8,1,0],[14296706,1,8,0,0],[14296706,0,8,1,0],[14296706,0,6,0,0],[14296706,1,6,2,0],[14296706,0,6,1,0],[14296706,2,4,6,1],[14296706,1,6,3,0],[14296706,0,4,0,0],[14296706,1,4,3,0],[14296706,0,4,1,0],[14360515,2,8,9,2],[14360515,0,8,0,0],[14379258,0,4,2,0],[14492025,2,2,4,0],[14492025,1,4,4,0],[14492025,0,2,0,0],[14589354,2,0,1,1],[14589354,1,1,1,0],[14589354,1,1,0,0],[14589354,0,1,1,0],[14595672,0,5,1,0],[14627791,2,0,1,1],[14627791,1,1,1,0],[14674756,2,0,2,0],[14674756,1,2,1,0],[14674756,1,2,0,0],[14674756,0,2,1,0],[14726701,2,6,8,1],[14726701,1,8,1,0],[14726701,1,8,0,0],[14726701,0,8,1,0],[14726701,0,6,0,0],[14726701,1,6,2,0],[14726701,0,6,1,0],[14726701,2,4,6,1],[14726701,1,6,3,0],[14726701,0,4,0,0],[14726701,1,4,3,0],[14726701,0,4,1,0],[14736375,2,5,8,1],[14736375,1,8,1,0],[14736375,0,5,0,0],[14779489,2,1,4,1],[14779489,1,4,4,0],[14779489,0,1,0,0],[14779489,1,1,0,0],[14779489,0,1,1,0],[14813115,2,8,9,1],[14813115,0,8,0,0],[14813115,1,8,0,0],[14813115,0,8,1,0],[14833508,2,4,7,1],[14833508,1,7,1,0],[14833508,1,7,0,0],[14833508,0,7,1,0],[14833508,0,4,0,0],[14833508,1,4,3,0],[14833508,0,4,1,0],[14882404,2,2,4,0],[14882404,1,4,4,0],[14882404,0,2,0,0],[14900902,0,4,2,0],[14912577,2,8,9,1],[14912577,0,8,0,0],[14960490,2,0,1,1],[14960490,1,1,1,0],[15033542,2,1,4,1],[15033542,1,4,5,0],[15033542,0,1,0,0],[15033542,1,1,0,0],[15033542,0,1,1,0],[15040079,2,0,1,0],[15040079,1,1,1,0],[15159121,2,6,8,1],[15159121,1,8,1,0],[15159121,1,8,0,0],[15159121,0,8,1,0],[15159121,0,6,0,0],[15159121,1,6,2,0],[15159121,0,6,1,0],[15159121,2,4,6,1],[15159121,1,6,3,0],[15159121,0,4,0,0],[15159121,1,4,4,0],[15159121,0,4,1,0],[15249892,0,4,2,0],[15260582,2,8,9,1],[15260582,0,8,0,0],[15328519,2,7,8,1],[15328519,1,8,1,0],[15328519,1,8,0,0],[15328519,0,8,1,0],[15328519,0,7,0,0],[15361191,2,1,4,1],[15361191,1,4,5,0],[15361191,0,1,0,0],[15361191,1,1,0,0],[15361191,0,1,1,0],[15362798,2,0,1,1],[15362798,1,1,1,0],[15420233,2,8,9,1],[15420233,0,8,0,0],[15432592,2,0,2,1],[15432592,1,2,1,0],[15432592,1,2,0,0],[15432592,0,2,1,0],[15533902,2,0,2,1],[15533902,1,2,1,0],[15652053,2,1,4,0],[15652053,1,4,6,0],[15652053,0,1,0,0],[15652053,1,1,0,0],[15652053,0,1,1,0],[15699872,2,0,1,1],[15699872,1,1,1,0],[15700348,0,2,2,0],[15715738,2,6,8,1],[15715738,1,8,1,0],[15715738,1,8,0,0],[15715738,0,8,1,0],[15715738,0,6,0,0],[15715738,1,6,2,0],[15715738,0,6,1,0],[15715738,2,4,6,1],[15715738,1,6,3,0],[15715738,0,4,0,0],[15715738,1,4,5,0],[15715738,0,4,1,0],[15715738,2,2,4,1],[15715738,1,4,6,0],[15715738,0,2,0,0],[15715738,1,2,0,0],[15715738,0,2,1,0],[15790239,2,8,9,1],[15790239,0,8,0,0],[15806670,2,4,5,1],[15806670,1,5,1,0],[15806670,1,5,0,0],[15806670,0,5,1,0],[15806670,0,4,0,0],[15806670,1,4,5,0],[15806670,0,4,1,0],[15867185,2,1,4,1],[15867185,1,4,6,0],[15867185,0,1,0,0],[15867185,1,1,0,0],[15867185,0,1,1,0],[15878073,2,0,1,1],[15878073,1,1,1,0],[15907174,0,4,2,0],[16041071,0,2,2,0],[16116647,2,6,8,1],[16116647,1,8,1,0],[16116647,1,8,0,0],[16116647,0,8,1,0],[16116647,0,6,0,0],[16116647,1,6,2,0],[16116647,0,6,1,0],[16116647,2,4,6,1],[16116647,1,6,3,0],[16116647,0,4,0,0],[16116647,1,4,5,0],[16116647,0,4,1,0],[16116647,2,2,4,1],[16116647,1,4,6,0],[16116647,0,2,0,0],[16129571,0,1,2,0],[16167921,2,8,9,1],[16167921,0,8,0,0],[16190050,0,4,2,0],[16334335,2,5,8,1],[16334335,1,8,1,0],[16334335,1,8,0,0],[16334335,0,8,1,0],[16334335,0,5,0,0],[16348201,2,0,2,2],[16348201,1,2,1,0],[16348201,1,2,0,0],[16348201,0,2,1,0],[16382944,2,0,2,0],[16382944,1,2,1,0],[16408906,2,0,3,2],[16408906,1,3,1,0],[16408906,1,3,0,0],[16408906,0,3,1,0],[16425974,2,8,9,1],[16425974,0,8,0,0],[16457771,0,2,2,0],[16466718,2,0,3,0],[16466718,1,3,1,0],[16508777,2,6,8,1],[16508777,1,8,1,0],[16508777,1,8,0,0],[16508777,0,8,1,0],[16508777,0,6,0,0],[16508777,1,6,2,0],[16508777,0,6,1,0],[16508777,2,4,6,1],[16508777,1,6,3,0],[16508777,0,4,0,0],[16508777,1,4,5,0],[16508777,0,4,1,0],[16508777,2,1,4,1],[16508777,1,4,6,0],[16508777,0,1,0,0],[16508777,1,1,0,0],[16508777,0,1,1,0],[16594776,2,8,9,1],[16594776,0,8,0,0],[16608893,0,4,2,0],[16644226,0,1,2,0],[16651997,0,3,2,0],[16689852,2,0,1,1],[16689852,1,1,1,0],[16858081,2,6,8,1],[16858081,1,8,1,0],[16858081,1,8,0,0],[16858081,0,8,1,0],[16858081,0,6,0,0],[16858081,1,6,2,0],[16858081,0,6,1,0],[16858081,2,4,6,1],[16858081,1,6,3,0],[16858081,0,4,0,0],[16858081,1,4,5,0],[16858081,0,4,1,0],[16858081,2,2,4,2],[16858081,1,4,6,0],[16858081,0,2,0,0],[16858081,1,2,0,0],[16858081,0,2,1,0],[16943103,2,4,5,1],[16943103,1,5,1,0],[16943103,1,5,0,0],[16943103,0,5,1,0],[16943103,0,4,0,0],[16943103,1,4,5,0],[16943103,0,4,1,0],[16943103,2,1,4,1],[16943103,1,4,6,0],[16943103,0,1,0,0],[16943103,1,1,0,0],[16943103,0,1,1,0],[16981905,2,8,9,1],[16981905,0,8,0,0],[17049989,2,4,3,2],[17049989,1,3,2,0],[17049989,0,4,0,0],[17049989,1,4,5,0],[17049989,0,4,1,0],[17049989,2,3,4,2],[17049989,1,4,6,0],[17049989,0,3,0,0],[17049989,1,3,1,0],[17049989,0,3,1,0],[17074894,0,2,2,0],[17103351,0,1,2,0],[17134316,0,4,2,0],[17159013,2,6,8,1],[17159013,1,8,1,0],[17159013,1,8,0,0],[17159013,0,8,1,0],[17159013,0,6,0,0],[17159013,1,6,2,0],[17159013,0,6,1,0],[17159013,2,4,6,1],[17159013,1,6,3,0],[17159013,0,4,0,0],[17159013,1,4,5,0],[17159013,0,4,1,0],[17159013,2,2,4,0],[17159013,1,4,6,0],[17159013,0,2,0,0],[17224167,2,8,9,1],[17224167,0,8,0,0],[17270263,2,4,5,2],[17270263,1,5,1,0],[17270263,0,4,0,0],[17270263,1,4,5,0],[17270263,0,4,1,0],[17270263,2,1,4,1],[17270263,1,4,6,0],[17270263,0,1,0,0],[17339878,0,4,2,0],[17359623,0,3,2,0],[17413990,2,5,8,1],[17413990,1,8,1,0],[17413990,1,8,0,0],[17413990,0,8,1,0],[17413990,0,5,0,0],[17413990,1,5,0,0],[17413990,0,5,1,0],[17481575,2,0,1,1],[17481575,1,1,1,0],[17481575,1,1,0,0],[17481575,0,1,1,0],[17501509,2,8,9,1],[17501509,0,8,0,0],[17555062,2,6,8,1],[17555062,1,8,1,0],[17555062,1,8,0,0],[17555062,0,8,1,0],[17555062,0,6,0,0],[17555062,1,6,2,0],[17555062,0,6,1,0],[17555062,2,4,6,1],[17555062,1,6,3,0],[17555062,0,4,0,0],[17555062,1,4,5,0],[17555062,0,4,1,0],[17555062,2,3,4,2],[17555062,1,4,6,0],[17555062,0,3,0,0],[17555062,1,3,0,0],[17555062,0,3,1,0],[17603106,2,4,7,1],[17603106,1,7,1,0],[17603106,1,7,0,0],[17603106,0,7,1,0],[17603106,0,4,0,0],[17603106,1,4,5,0],[17603106,0,4,1,0],[17655294,2,0,1,1],[17655294,1,1,1,0],[17679689,2,8,9,1],[17679689,0,8,0,0],[17705047,0,4,2,0],[17756272,2,1,4,1],[17756272,1,4,6,0],[17756272,0,1,0,0],[17756272,1,1,0,0],[17756272,0,1,1,0],[17804970,2,0,1,0],[17804970,1,1,1,0],[17831667,0,3,2,0],[17848748,2,5,8,2],[17848748,1,8,1,0],[17848748,1,8,0,0],[17848748,0,8,1,0],[17848748,0,5,0,0],[17928220,2,8,9,2],[17928220,0,8,0,0],[17933479,2,7,8,1],[17933479,1,8,1,0],[17933479,1,8,0,0],[17933479,0,8,1,0],[17933479,0,7,0,0],[17978746,0,1,2,0],[18019723,2,8,9,1],[18019723,0,8,0,0],[18020593,2,0,2,1],[18020593,1,2,1,0],[18020593,1,2,0,0],[18020593,0,2,1,0],[18121719,2,6,8,1],[18121719,1,8,1,0],[18121719,1,8,0,0],[18121719,0,8,1,0],[18121719,0,6,0,0],[18121719,1,6,2,0],[18121719,0,6,1,0],[18121719,2,4,6,2],[18121719,1,6,3,0],[18121719,0,4,0,0],[18121719,1,4,5,0],[18121719,0,4,1,0],[18121719,2,3,4,0],[18121719,1,4,6,0],[18121719,0,3,0,0],[18204296,2,8,9,1],[18204296,0,8,0,0],[18217913,0,4,2,0],[18271080,2,0,2,1],[18271080,1,2,1,0],[18276988,2,0,3,1],[18276988,1,3,1,0],[18276988,1,3,0,0],[18276988,0,3,1,0],[18329670,0,2,2,0],[18380126,2,0,3,2],[18380126,1,3,1,0],[18423414,2,0,1,0],[18423414,1,1,2,0],[18479619,2,0,2,0],[18479619,1,2,2,0],[18518405,0,3,2,0],[18573330,2,6,8,1],[18573330,1,8,1,0],[18573330,1,8,0,0],[18573330,0,8,1,0],[18573330,0,6,0,0],[18573330,1,6,2,0],[18573330,0,6,1,0],[18573330,2,4,6,1],[18573330,1,6,3,0],[18573330,0,4,0,0],[18573330,1,4,5,0],[18573330,0,4,1,0],[18573330,2,1,4,1],[18573330,1,4,6,0],[18573330,0,1,0,0],[18573330,1,1,1,0],[18573330,0,1,1,0],[18651941,2,4,8,0],[18651941,1,8,1,0],[18651941,0,4,0,0],[18651941,1,4,5,0],[18651941,0,4,1,0],[18651941,2,2,4,1],[18651941,1,4,6,0],[18651941,0,2,0,0],[18651941,1,2,1,0],[18651941,0,2,1,0],[18665656,2,8,9,1],[18665656,0,8,0,0],[18665656,1,8,0,0],[18665656,0,8,1,0],[18707803,2,4,5,1],[18707803,1,5,1,0],[18707803,1,5,0,0],[18707803,0,5,1,0],[18707803,0,4,0,0],[18707803,1,4,5,0],[18707803,0,4,1,0],[18707803,2,3,4,1],[18707803,1,4,6,0],[18707803,0,3,0,0],[18707803,1,3,0,0],[18707803,0,3,1,0],[18720661,2,0,3,0],[18720661,1,3,1,0],[18736892,2,8,9,0],[18736892,0,8,0,0],[18765373,0,1,2,0],[18791788,0,4,2,0],[18870364,0,2,2,0],[18924466,0,3,2,0],[19044169,2,0,1,1],[19044169,1,1,2,0],[19045143,2,0,2,0],[19045143,1,2,2,0],[19049810,2,0,3,1],[19049810,1,3,2,0],[19055306,2,6,8,2],[19055306,1,8,1,0],[19055306,1,8,0,0],[19055306,0,8,1,0],[19055306,0,6,0,0],[19055306,1,6,2,0],[19055306,0,6,1,0],[19055306,2,4,6,1],[19055306,1,6,3,0],[19055306,0,4,0,0],[19055306,1,4,5,0],[19055306,0,4,1,0],[19055306,2,1,4,0],[19055306,1,4,6,0],[19055306,0,1,0,0],[19055306,1,1,1,0],[19055306,0,1,1,0],[19070317,2,0,1,2],[19070317,1,1,2,0],[19133025,2,8,9,2],[19133025,0,8,0,0],[19156817,2,4,7,1],[19156817,1,7,1,0],[19156817,1,7,0,0],[19156817,0,7,1,0],[19156817,0,4,0,0],[19156817,1,4,5,0],[19156817,0,4,1,0],[19156817,2,2,4,1],[19156817,1,4,6,0],[19156817,0,2,0,0],[19156817,1,2,1,0],[19156817,0,2,1,0],[19215999,2,5,8,1],[19215999,1,8,1,0],[19215999,1,8,0,0],[19215999,0,8,1,0],[19215999,0,5,0,0],[19232239,2,4,8,0],[19232239,1,8,1,0],[19232239,0,4,0,0],[19232239,1,4,5,0],[19232239,0,4,1,0],[19232239,2,3,4,2],[19232239,1,4,6,0],[19232239,0,3,0,0],[19232239,1,3,1,0],[19232239,0,3,1,0],[19282950,2,8,9,1],[19282950,0,8,0,0],[19282950,1,8,0,0],[19282950,0,8,1,0],[19300239,0,1,2,0],[19304551,2,4,7,1],[19304551,1,7,1,0],[19304551,0,4,0,0],[19304551,1,4,5,0],[19304551,0,4,1,0],[19304551,2,1,4,1],[19304551,1,4,6,0],[19304551,0,1,0,0],[19304551,1,1,1,0],[19304551,0,1,1,0],[19324080,2,6,8,1],[19324080,1,8,1,0],[19324080,0,6,0,0],[19324080,1,6,2,0],[19324080,0,6,1,0],[19343115,0,2,2,0],[19343808,2,8,9,0],[19343808,0,8,0,0],[19343808,1,8,0,0],[19343808,0,8,1,0],[19395941,2,0,1,1],[19395941,1,1,2,0],[19406378,0,3,2,0],[19421533,2,4,7,2],[19421533,1,7,2,0],[19421533,0,4,0,0],[19421533,1,4,5,0],[19421533,0,4,1,0],[19421533,2,2,4,0],[19421533,1,4,6,0],[19421533,0,2,0,0],[19421533,1,2,0,0],[19421533,0,2,1,0],[19453332,2,8,9,1],[19453332,0,8,0,0],[19519035,2,4,5,1],[19519035,1,5,1,0],[19519035,1,5,0,0],[19519035,0,5,1,0],[19519035,0,4,0,0],[19519035,1,4,5,0],[19519035,0,4,1,0],[19519035,2,3,4,1],[19519035,1,4,6,0],[19519035,0,3,0,0],[19519035,1,3,0,0],[19519035,0,3,1,0],[19559888,0,1,2,0],[19614190,2,4,8,0],[19614190,1,8,1,0],[19614190,1,8,0,0],[19614190,0,8,1,0],[19614190,0,4,0,0],[19614190,1,4,5,0],[19614190,0,4,1,0],[19614190,2,1,4,2],[19614190,1,4,6,0],[19614190,0,1,0,0],[19614190,1,1,1,0],[19614190,0,1,1,0],[19626958,2,0,2,0],[19626958,1,2,1,0],[19646080,2,6,8,1],[19646080,1,8,1,0],[19646080,0,6,0,0],[19646080,1,6,1,0],[19646080,0,6,1,0],[19654964,2,7,8,1],[19654964,1,8,2,0],[19654964,0,7,0,0],[19654964,1,7,1,0],[19654964,0,7,1,0],[19670797,0,2,2,0],[19686230,2,4,6,1],[19686230,1,6,2,0],[19686230,0,4,0,0],[19686230,1,4,5,0],[19686230,0,4,1,0],[19686230,2,2,4,0],[19686230,1,4,6,0],[19686230,0,2,0,0],[19686230,1,2,0,0],[19686230,0,2,1,0],[19704418,2,8,9,0],[19704418,0,8,0,0],[19704418,1,8,1,0],[19704418,0,8,1,0],[19740069,0,3,2,0],[19745933,2,0,2,0],[19745933,1,2,1,0],[19779899,2,8,9,1],[19779899,0,8,0,0],[19779899,1,8,0,0],[19779899,0,8,1,0],[19801328,2,4,5,2],[19801328,1,5,1,0],[19801328,0,4,0,0],[19801328,1,4,5,0],[19801328,0,4,1,0],[19801328,2,3,4,0],[19801328,1,4,6,0],[19801328,0,3,0,0],[19862792,2,8,9,1],[19862792,0,8,0,0],[19897555,2,4,8,0],[19897555,1,8,1,0],[19897555,1,8,0,0],[19897555,0,8,1,0],[19897555,0,4,0,0],[19897555,1,4,5,0],[19897555,0,4,1,0],[19916712,2,0,3,1],[19916712,1,3,1,0],[19916712,1,3,0,0],[19916712,0,3,1,0],[19936320,2,2,4,0],[19936320,1,4,6,0],[19936320,0,2,0,0],[19936320,1,2,0,0],[19936320,0,2,1,0],[19971804,0,1,2,0],[19980448,2,4,8,0],[19980448,1,8,1,0],[19980448,0,4,0,0],[19980448,1,4,5,0],[19980448,0,4,1,0],[19980448,2,1,4,1],[19980448,1,4,6,0],[19980448,0,1,0,0],[19980448,1,1,0,0],[19980448,0,1,1,0],[19983306,2,8,9,0],[19983306,0,8,0,0],[19983306,1,8,0,0],[19983306,0,8,1,0],[19998632,2,0,1,1],[19998632,1,1,1,0],[20062501,2,4,8,0],[20062501,1,8,1,0],[20062501,0,4,0,0],[20062501,1,4,5,0],[20062501,0,4,1,0],[20073867,2,5,8,1],[20073867,1,8,2,0],[20073867,0,5,0,0],[20073867,1,5,0,0],[20073867,0,5,1,0],[20078200,2,8,9,0],[20078200,0,8,0,0],[20078200,1,8,1,0],[20078200,0,8,1,0],[20081888,2,6,8,1],[20081888,1,8,2,0],[20081888,0,6,0,0],[20081888,1,6,1,0],[20081888,0,6,1,0],[20086534,2,7,8,2],[20086534,1,8,3,0],[20086534,0,7,0,0],[20086534,1,7,0,0],[20086534,0,7,1,0],[20089975,2,3,4,1],[20089975,1,4,6,0],[20089975,0,3,0,0],[20116459,0,2,2,0],[20175726,2,4,5,1],[20175726,1,5,1,0],[20175726,0,4,0,0],[20175726,1,4,5,0],[20175726,0,4,1,0],[20175726,2,2,4,0],[20175726,1,4,6,0],[20175726,0,2,0,0],[20180839,2,8,9,0],[20180839,0,8,0,0],[20180839,1,8,2,0],[20180839,0,8,1,0],[20232650,2,8,9,1],[20232650,0,8,0,0],[20232650,1,8,1,0],[20232650,0,8,1,0],[20259597,0,1,2,0],[20290972,2,4,7,1],[20290972,1,7,1,0],[20290972,0,4,0,0],[20290972,1,4,5,0],[20290972,0,4,1,0],[20290972,2,1,4,0],[20290972,1,4,6,0],[20290972,0,1,0,0],[20290972,1,1,0,0],[20290972,0,1,1,0],[20297674,2,8,9,1],[20297674,0,8,0,0],[20297674,1,8,0,0],[20297674,0,8,1,0],[20396943,2,4,8,0],[20396943,1,8,1,0],[20396943,0,4,0,0],[20396943,1,4,5,0],[20396943,0,4,1,0],[20403495,2,5,8,2],[20403495,1,8,2,0],[20403495,0,5,0,0],[20403495,1,5,0,0],[20403495,0,5,1,0],[20423277,2,8,9,2],[20423277,0,8,0,0],[20423277,1,8,1,0],[20423277,0,8,1,0],[20452560,2,7,8,1],[20452560,1,8,2,0],[20452560,0,7,0,0],[20452560,1,7,0,0],[20452560,0,7,1,0],[20486150,2,4,8,0],[20486150,1,8,3,0],[20486150,0,4,0,0],[20486150,1,4,4,0],[20486150,0,4,1,0],[20487524,2,6,8,1],[20487524,1,8,4,0],[20487524,0,6,0,0],[20487524,1,6,0,0],[20487524,0,6,1,0],[20494536,2,8,9,0],[20494536,0,8,0,0],[20494536,1,8,3,0],[20494536,0,8,1,0],[20513776,2,1,4,1],[20513776,1,4,5,0],[20513776,0,1,0,0],[20545529,2,0,1,1],[20545529,1,1,1,0],[20545529,1,1,0,0],[20545529,0,1,1,0],[20558315,2,8,9,2],[20558315,0,8,0,0],[20558315,1,8,2,0],[20558315,0,8,1,0],[20606327,2,4,8,0],[20606327,1,8,3,0],[20606327,0,4,0,0],[20606327,1,4,4,0],[20606327,0,4,1,0],[20626179,2,1,4,1],[20626179,1,4,5,0],[20626179,0,1,0,0],[20626790,0,5,3,0],[20648539,2,8,9,1],[20648539,0,8,0,0],[20648539,1,8,2,0],[20648539,0,8,1,0],[20681263,2,4,5,1],[20681263,1,5,1,0],[20681263,0,4,0,0],[20681263,1,4,4,0],[20681263,0,4,1,0],[20701137,2,0,1,1],[20701137,1,1,1,0],[20701137,1,1,0,0],[20701137,0,1,1,0],[20713972,2,6,8,1],[20713972,1,8,3,0],[20713972,0,6,0,0],[20745551,2,4,6,1],[20745551,1,6,1,0],[20745551,1,6,0,0],[20745551,0,6,1,0],[20745551,0,4,0,0],[20745551,1,4,3,0],[20745551,0,4,1,0],[20748603,2,8,9,0],[20748603,0,8,0,0],[20748603,1,8,2,0],[20748603,0,8,1,0],[20790892,0,5,1,0],[20813625,2,8,9,1],[20813625,0,8,0,0],[20813625,1,8,1,0],[20813625,0,8,1,0],[20824899,2,7,8,1],[20824899,1,8,2,0],[20824899,0,7,0,0],[20848611,2,1,4,1],[20848611,1,4,4,0],[20848611,0,1,0,0],[20858456,2,0,1,1],[20858456,1,1,1,0],[20858456,1,1,0,0],[20858456,0,1,1,0],[20862481,2,0,1,1],[20862481,1,1,1,0],[20873138,2,4,8,0],[20873138,1,8,3,0],[20873138,0,4,0,0],[20873138,1,4,3,0],[20873138,0,4,1,0],[20890387,2,0,2,0],[20890387,1,2,1,0],[20890387,1,2,0,0],[20890387,0,2,1,0],[20937219,2,4,5,1],[20937219,1,5,2,0],[20937219,0,4,0,0],[20937219,1,4,2,0],[20937219,0,4,1,0],[20938431,2,8,9,0],[20938431,0,8,0,0],[20938431,1,8,2,0],[20938431,0,8,1,0],[20998618,2,5,8,1],[20998618,1,8,3,0],[20998618,0,5,0,0],[20998618,1,5,1,0],[20998618,0,5,1,0],[21044200,2,4,8,0],[21044200,1,8,4,0],[21044200,0,4,0,0],[21044200,1,4,1,0],[21044200,0,4,1,0],[21046712,2,8,9,1],[21046712,0,8,0,0],[21046712,1,8,3,0],[21046712,0,8,1,0],[21070547,2,0,2,1],[21070547,1,2,1,0],[21088127,2,6,8,1],[21088127,1,8,4,0],[21088127,0,6,0,0],[21088785,2,1,4,1],[21088785,1,4,2,0],[21088785,0,1,0,0],[21088785,1,1,0,0],[21088785,0,1,1,0],[21090837,2,2,4,0],[21090837,1,4,3,0],[21090837,0,2,0,0],[21090837,1,2,0,0],[21090837,0,2,1,0],[21116170,2,0,1,0],[21116170,1,1,1,0],[21118247,2,8,9,1],[21118247,0,8,0,0],[21118247,1,8,3,0],[21118247,0,8,1,0],[21149262,2,4,8,0],[21149262,1,8,4,0],[21149262,0,4,0,0],[21149262,1,4,2,0],[21149262,0,4,1,0],[21166131,0,1,3,0],[21218563,2,8,9,0],[21218563,0,8,0,0],[21218563,1,8,3,0],[21218563,0,8,1,0],[21255247,2,4,5,1],[21255247,1,5,2,0],[21255247,0,4,0,0],[21255247,1,4,1,0],[21255247,0,4,1,0],[21269906,0,1,1,0],[21286084,2,0,2,1],[21286084,1,2,1,0],[21324087,2,8,9,1],[21324087,0,8,0,0],[21324087,1,8,2,0],[21324087,0,8,1,0],[21325787,2,2,4,1],[21325787,1,4,2,0],[21325787,0,2,0,0],[21325787,1,2,0,0],[21325787,0,2,1,0],[21354074,2,4,8,0],[21354074,1,8,3,0],[21354074,0,4,0,0],[21354074,1,4,1,0],[21354074,0,4,1,0],[21418444,2,4,7,1],[21418444,1,7,1,0],[21418444,1,7,0,0],[21418444,0,7,1,0],[21418444,0,4,0,0],[21418444,1,4,0,0],[21418444,0,4,1,0],[21428777,2,8,9,0],[21428777,0,8,0,0],[21428777,1,8,2,0],[21428777,0,8,1,0],[21431273,2,5,8,1],[21431273,1,8,3,0],[21431273,0,5,0,0],[21431273,1,5,1,0],[21431273,0,5,1,0],[21439623,2,1,4,1],[21439623,1,4,1,0],[21439623,0,1,0,0],[21439623,1,1,0,0],[21439623,0,1,1,0],[21508866,2,8,9,1],[21508866,0,8,0,0],[21508866,1,8,2,0],[21508866,0,8,1,0],[21541380,2,4,8,0],[21541380,1,8,3,0],[21541380,0,4,0,0],[21541380,1,4,0,0],[21541380,0,4,1,0],[21566766,2,0,1,1],[21566766,1,1,1,0],[21576075,2,0,2,1],[21576075,1,2,1,0],[21585993,2,0,3,1],[21585993,1,3,1,0],[21585993,1,3,0,0],[21585993,0,3,1,0],[21615956,2,4,7,1],[21615956,1,7,1,0],[21615956,0,4,0,0],[21618685,2,8,9,0],[21618685,0,8,0,0],[21618685,1,8,2,0],[21618685,0,8,1,0],[21619400,2,2,4,1],[21619400,1,4,1,0],[21619400,1,4,0,0],[21619400,0,4,1,0],[21619400,0,2,0,0],[21619400,1,2,0,0],[21619400,0,2,1,0],[21704528,2,1,4,0],[21704528,1,4,1,0],[21704528,0,1,0,0],[21704528,1,1,0,0],[21704528,0,1,1,0],[21713457,2,4,5,1],[21713457,1,5,2,0],[21713457,0,4,0,0],[21713457,1,4,0,0],[21713457,0,4,1,0],[21717368,2,8,9,0],[21717368,0,8,0,0],[21717368,1,8,1,0],[21717368,0,8,1,0],[21745025,2,7,8,1],[21745025,1,8,2,0],[21745025,0,7,0,0],[21745025,1,7,0,0],[21745025,0,7,1,0],[21778970,2,4,8,0],[21778970,1,8,3,0],[21778970,0,4,0,0],[21803145,2,8,9,1],[21803145,0,8,0,0],[21803145,1,8,2,0],[21803145,0,8,1,0],[21822298,2,0,1,1],[21822298,1,1,1,0],[21826111,2,3,4,1],[21826111,1,4,1,0],[21826111,1,4,0,0],[21826111,0,4,1,0],[21826111,0,3,0,0],[21872973,2,2,4,1],[21872973,1,4,1,0],[21872973,0,2,0,0],[21894063,2,8,9,0],[21894063,0,8,0,0],[21894063,1,8,1,0],[21894063,0,8,1,0],[21920521,2,4,5,1],[21920521,1,5,3,0],[21920521,0,4,0,0],[21920521,1,4,0,0],[21920521,0,4,1,0],[21924384,2,5,8,1],[21924384,1,8,2,0],[21924384,0,5,0,0],[21924384,1,5,2,0],[21924384,0,5,1,0],[21942755,2,1,4,1],[21942755,1,4,1,0],[21942755,0,1,0,0],[21942755,1,1,0,0],[21942755,0,1,1,0],[21961679,2,8,9,1],[21961679,0,8,0,0],[21961679,1,8,1,0],[21961679,0,8,1,0],[21962871,2,0,1,1],[21962871,1,1,1,0],[22000216,2,4,5,1],[22000216,1,5,3,0],[22000216,0,4,0,0],[22000216,1,4,0,0],[22000216,0,4,1,0],[22018089,2,8,9,0],[22018089,0,8,0,0],[22018089,1,8,0,0],[22018089,0,8,1,0],[22101009,2,8,9,1],[22101009,0,8,0,0],[22111947,0,4,2,0],[22152784,2,7,8,1],[22152784,1,8,1,0],[22152784,1,8,0,0],[22152784,0,8,1,0],[22152784,0,7,0,0],[22186270,2,1,4,1],[22186270,1,4,1,0],[22186270,0,1,0,0],[22186270,1,1,0,0],[22186270,0,1,1,0],[22238046,2,8,9,1],[22238046,0,8,0,0],[22290849,2,0,1,1],[22290849,1,1,1,0],[22346672,2,0,2,1],[22346672,1,2,1,0],[22346672,1,2,0,0],[22346672,0,2,1,0],[22396272,2,1,4,1],[22396272,1,4,2,0],[22396272,0,1,0,0],[22396272,1,1,0,0],[22396272,0,1,1,0],[22403358,2,5,8,1],[22403358,1,8,1,0],[22403358,1,8,0,0],[22403358,0,8,1,0],[22403358,0,5,0,0],[22403358,1,5,2,0],[22403358,0,5,1,0],[22403358,2,4,5,1],[22403358,1,5,3,0],[22403358,0,4,0,0],[22403358,1,4,1,0],[22403358,0,4,1,0],[22475989,2,0,1,1],[22475989,1,1,1,0],[22484207,2,0,2,1],[22484207,1,2,1,0],[22498118,2,4,7,1],[22498118,1,7,1,0],[22498118,1,7,0,0],[22498118,0,7,1,0],[22498118,0,4,0,0],[22498118,1,4,0,0],[22498118,0,4,1,0],[22499474,2,8,9,1],[22499474,0,8,0,0],[22537803,2,1,4,1],[22537803,1,4,1,0],[22537803,0,1,0,0],[22537803,1,1,0,0],[22537803,0,1,1,0],[22582546,2,0,1,1],[22582546,1,1,1,0],[22586793,2,2,4,1],[22586793,1,4,2,0],[22586793,0,2,0,0],[22586793,1,2,0,0],[22586793,0,2,1,0],[22589950,2,4,6,1],[22589950,1,6,1,0],[22589950,1,6,0,0],[22589950,0,6,1,0],[22589950,0,4,0,0],[22589950,1,4,1,0],[22589950,0,4,1,0],[22688433,2,1,4,1],[22688433,1,4,2,0],[22688433,0,1,0,0],[22688433,1,1,0,0],[22688433,0,1,1,0],[22698394,2,4,6,1],[22698394,1,6,1,0],[22698394,0,4,0,0],[22698394,1,4,1,0],[22698394,0,4,1,0],[22700585,2,7,8,1],[22700585,1,8,1,0],[22700585,1,8,0,0],[22700585,0,8,1,0],[22700585,0,7,0,0],[22755283,0,4,2,0],[22798089,2,8,9,1],[22798089,0,8,0,0],[22814958,2,2,4,1],[22814958,1,4,2,0],[22814958,0,2,0,0],[22865594,2,0,1,1],[22865594,1,1,1,0],[22934051,2,5,8,1],[22934051,1,8,1,0],[22934051,1,8,0,0],[22934051,0,8,1,0],[22934051,0,5,0,0],[22934051,1,5,2,0],[22934051,0,5,1,0],[22934051,2,4,5,1],[22934051,1,5,3,0],[22934051,0,4,0,0],[22934051,1,4,1,0],[22934051,0,4,1,0],[22949227,2,1,4,1],[22949227,1,4,2,0],[22949227,0,1,0,0],[22949227,1,1,0,0],[22949227,0,1,1,0],[22965004,2,0,1,2],[22965004,1,1,1,0],[23012102,2,4,6,1],[23012102,1,6,2,0],[23012102,0,4,0,0],[23012102,1,4,1,0],[23012102,0,4,1,0],[23014671,2,6,8,1],[23014671,1,8,1,0],[23014671,0,6,0,0],[23014671,1,6,1,0],[23014671,0,6,1,0],[23019680,2,0,2,1],[23019680,1,2,1,0],[23019680,1,2,0,0],[23019680,0,2,1,0],[23045879,2,8,9,1],[23045879,0,8,0,0],[23045879,1,8,0,0],[23045879,0,8,1,0],[23100103,2,4,6,1],[23100103,1,6,2,0],[23100103,0,4,0,0],[23100103,1,4,0,0],[23100103,0,4,1,0],[23134147,2,1,4,1],[23134147,1,4,1,0],[23134147,0,1,0,0],[23134147,1,1,0,0],[23134147,0,1,1,0],[23159601,2,0,1,0],[23159601,1,1,1,0],[23161842,2,8,9,1],[23161842,0,8,0,0],[23204779,2,4,7,1],[23204779,1,7,1,0],[23204779,1,7,0,0],[23204779,0,7,1,0],[23204779,0,4,0,0],[23204779,1,4,0,0],[23204779,0,4,1,0],[23210612,2,2,4,1],[23210612,1,4,1,0],[23210612,0,2,0,0],[23252366,2,4,2,1],[23252366,1,2,1,0],[23252366,1,2,0,0],[23252366,0,2,1,0],[23252366,0,4,0,0],[23252366,1,4,0,0],[23252366,0,4,1,0],[23288320,2,0,2,0],[23288320,1,2,1,0],[23318406,2,1,4,2],[23318406,1,4,1,0],[23318406,0,1,0,0],[23318406,1,1,0,0],[23318406,0,1,1,0],[23324629,2,4,6,1],[23324629,1,6,3,0],[23324629,0,4,0,0],[23324629,1,4,0,0],[23324629,0,4,1,0],[23364215,2,5,8,1],[23364215,1,8,1,0],[23364215,1,8,0,0],[23364215,0,8,1,0],[23364215,0,5,0,0],[23364215,1,5,2,0],[23364215,0,5,1,0],[23413033,2,0,1,2],[23413033,1,1,1,0],[23416070,0,4,2,0],[23427006,2,8,9,1],[23427006,0,8,0,0],[23447882,2,2,4,1],[23447882,1,4,1,0],[23447882,0,2,0,0],[23447882,1,2,0,0],[23447882,0,2,1,0],[23463626,2,1,4,0],[23463626,1,4,2,0],[23463626,0,1,0,0],[23463626,1,1,0,0],[23463626,0,1,1,0],[23471846,2,0,1,1],[23471846,1,1,1,0],[23549750,2,6,8,1],[23549750,1,8,1,0],[23549750,1,8,0,0],[23549750,0,8,1,0],[23549750,0,6,0,0],[23549750,1,6,2,0],[23549750,0,6,1,0],[23549750,2,4,6,2],[23549750,1,6,3,0],[23549750,0,4,0,0],[23549750,1,4,1,0],[23549750,0,4,1,0],[23636779,0,4,2,0],[23646204,2,2,4,0],[23646204,1,4,2,0],[23646204,0,2,0,0],[23682451,2,5,8,1],[23682451,1,8,1,0],[23682451,0,5,0,0],[23682451,1,5,1,0],[23682451,0,5,1,0],[23688175,2,8,9,1],[23688175,0,8,0,0],[23688175,1,8,0,0],[23688175,0,8,1,0],[23708875,2,1,4,2],[23708875,1,4,3,0],[23708875,0,1,0,0],[23708875,1,1,0,0],[23708875,0,1,1,0],[23717272,2,7,8,1],[23717272,1,8,1,0],[23717272,0,7,0,0],[23808677,2,8,9,1],[23808677,0,8,0,0],[23808677,1,8,0,0],[23808677,0,8,1,0],[23813010,2,0,1,1],[23813010,1,1,1,0],[23855673,2,6,8,1],[23855673,1,8,1,0],[23855673,0,6,0,0],[23855673,1,6,2,0],[23855673,0,6,1,0],[23855673,2,4,6,1],[23855673,1,6,3,0],[23855673,0,4,0,0],[23855673,1,4,2,0],[23855673,0,4,1,0],[23912092,2,8,9,1],[23912092,0,8,0,0],[23912092,1,8,0,0],[23912092,0,8,1,0],[23934218,2,4,7,2],[23934218,1,7,1,0],[23934218,1,7,0,0],[23934218,0,7,1,0],[23934218,0,4,0,0],[23934218,1,4,1,0],[23934218,0,4,1,0],[24016844,2,1,4,1],[24016844,1,4,2,0],[24016844,0,1,0,0],[24016844,1,1,0,0],[24016844,0,1,1,0],[24026350,2,4,8,0],[24026350,1,8,1,0],[24026350,0,4,0,0],[24026350,1,4,1,0],[24026350,0,4,1,0],[24029799,2,8,9,1],[24029799,0,8,0,0],[24029799,1,8,0,0],[24029799,0,8,1,0],[24042980,2,5,8,1],[24042980,1,8,1,0],[24042980,0,5,0,0],[24042980,1,5,0,0],[24042980,0,5,1,0],[24070291,2,0,1,2],[24070291,1,1,1,0],[24109877,2,8,9,0],[24109877,0,8,0,0],[24109877,1,8,0,0],[24109877,0,8,1,0],[24112984,2,4,7,1],[24112984,1,7,1,0],[24112984,0,4,0,0],[24112984,1,4,0,0],[24112984,0,4,1,0],[24163775,2,4,8,0],[24163775,1,8,1,0],[24163775,0,4,0,0],[24188176,2,1,4,1],[24188176,1,4,1,0],[24188176,1,4,0,0],[24188176,0,4,1,0],[24188176,0,1,0,0],[24188176,1,1,0,0],[24188176,0,1,1,0],[24199874,2,6,8,2],[24199874,1,8,2,0],[24199874,0,6,0,0],[24199874,1,6,2,0],[24199874,0,6,1,0],[24223831,2,8,9,1],[24223831,0,8,0,0],[24223831,1,8,1,0],[24223831,0,8,1,0],[24244127,2,7,8,2],[24244127,1,8,2,0],[24244127,0,7,0,0],[24244127,1,7,0,0],[24244127,0,7,1,0],[24285462,2,4,6,1],[24285462,1,6,3,0],[24285462,0,4,0,0],[24310311,2,8,9,0],[24310311,0,8,0,0],[24310311,1,8,1,0],[24310311,0,8,1,0],[24340882,2,0,1,1],[24340882,1,1,1,0],[24402997,2,8,9,2],[24402997,0,8,0,0],[24402997,1,8,0,0],[24402997,0,8,1,0],[24419161,2,0,2,1],[24419161,1,2,1,0],[24419161,1,2,0,0],[24419161,0,2,1,0],[24433431,2,1,4,2],[24433431,1,4,1,0],[24433431,1,4,0,0],[24433431,0,4,1,0],[24433431,0,1,0,0],[24433431,1,1,0,0],[24433431,0,1,1,0],[24435864,2,0,1,1],[24435864,1,1,1,0],[24449720,2,6,8,1],[24449720,1,8,1,0],[24449720,0,6,0,0],[24449720,1,6,2,0],[24449720,0,6,1,0],[24491815,2,8,9,2],[24491815,0,8,0,0],[24491815,1,8,0,0],[24491815,0,8,1,0],[24527862,2,4,6,2],[24527862,1,6,3,0],[24527862,0,4,0,0],[24573234,2,8,9,1],[24573234,0,8,0,0],[24608869,2,1,4,1],[24608869,1,4,1,0],[24608869,1,4,0,0],[24608869,0,4,1,0],[24608869,0,1,0,0],[24608869,1,1,0,0],[24608869,0,1,1,0],[24622412,2,7,8,1],[24622412,1,8,1,0],[24622412,1,8,0,0],[24622412,0,8,1,0],[24622412,0,7,0,0],[24637786,2,5,8,1],[24637786,1,8,1,0],[24637786,0,5,0,0],[24664502,2,4,7,1],[24664502,1,7,1,0],[24664502,1,7,0,0],[24664502,0,7,1,0],[24664502,0,4,0,0],[24668255,2,2,4,1],[24668255,1,4,1,0],[24668255,1,4,0,0],[24668255,0,4,1,0],[24668255,0,2,0,0],[24699072,2,8,9,1],[24699072,0,8,0,0],[24699072,1,8,0,0],[24699072,0,8,1,0],[24788764,2,4,5,1],[24788764,1,5,1,0],[24788764,1,5,0,0],[24788764,0,5,1,0],[24788764,0,4,0,0],[24804646,2,8,9,1],[24804646,0,8,0,0],[24809005,2,0,1,1],[24809005,1,1,1,0],[24814335,2,1,4,1],[24814335,1,4,1,0],[24814335,1,4,0,0],[24814335,0,4,1,0],[24814335,0,1,0,0],[24814335,1,1,0,0],[24814335,0,1,1,0],[24863431,2,6,8,1],[24863431,1,8,1,0],[24863431,1,8,0,0],[24863431,0,8,1,0],[24863431,0,6,0,0],[24863431,1,6,2,0],[24863431,0,6,1,0],[24893865,2,4,5,1],[24893865,1,5,1,0],[24893865,0,4,0,0],[24957881,2,8,9,1],[24957881,0,8,0,0],[24988148,2,0,1,0],[24988148,1,1,1,0],[25137451,2,1,4,1],[25137451,1,4,1,0],[25137451,1,4,0,0],[25137451,0,4,1,0],[25137451,0,1,0,0],[25137451,1,1,0,0],[25137451,0,1,1,0],[25158601,2,7,8,1],[25158601,1,8,1,0],[25158601,1,8,0,0],[25158601,0,8,1,0],[25158601,0,7,0,0],[25231789,2,4,7,1],[25231789,1,7,1,0],[25231789,1,7,0,0],[25231789,0,7,1,0],[25231789,0,4,0,0],[25296662,2,8,9,1],[25296662,0,8,0,0],[25306155,2,6,8,2],[25306155,1,8,1,0],[25306155,1,8,0,0],[25306155,0,8,1,0],[25306155,0,6,0,0],[25306155,1,6,1,0],[25306155,0,6,1,0],[25315158,2,5,8,1],[25315158,1,8,1,0],[25315158,0,5,0,0],[25315158,1,5,0,0],[25315158,0,5,1,0],[25356035,2,0,1,1],[25356035,1,1,1,0],[25368261,2,0,2,1],[25368261,1,2,1,0],[25368261,1,2,0,0],[25368261,0,2,1,0],[25409578,2,8,9,2],[25409578,0,8,0,0],[25409578,1,8,0,0],[25409578,0,8,1,0],[25448964,2,1,4,0],[25448964,1,4,1,0],[25448964,1,4,0,0],[25448964,0,4,1,0],[25448964,0,1,0,0],[25448964,1,1,0,0],[25448964,0,1,1,0],[25511995,2,8,9,1],[25511995,0,8,0,0],[25526745,2,0,1,1],[25526745,1,1,1,0],[25564126,2,4,8,0],[25564126,1,8,1,0],[25564126,1,8,0,0],[25564126,0,8,1,0],[25564126,0,4,0,0],[25595212,2,6,8,1],[25595212,1,8,1,0],[25595212,0,6,0,0],[25595212,1,6,0,0],[25595212,0,6,1,0],[25621095,2,7,8,1],[25621095,1,8,2,0],[25621095,0,7,0,0],[25625277,2,2,4,1],[25625277,1,4,1,0],[25625277,1,4,0,0],[25625277,0,4,1,0],[25625277,0,2,0,0],[25641265,2,8,9,0],[25641265,0,8,0,0],[25641265,1,8,1,0],[25641265,0,8,1,0],[25643183,2,1,4,1],[25643183,1,4,1,0],[25643183,0,1,0,0],[25643183,1,1,0,0],[25643183,0,1,1,0],[25655986,2,0,1,1],[25655986,1,1,1,0],[25666139,2,5,8,1],[25666139,1,8,2,0],[25666139,0,5,0,0],[25678418,2,0,2,2],[25678418,1,2,1,0],[25678418,1,2,0,0],[25678418,0,2,1,0],[25697297,2,4,1,1],[25697297,1,1,2,0],[25697297,0,4,0,0],[25697297,1,4,0,0],[25697297,0,4,1,0],[25728599,2,8,9,1],[25728599,0,8,0,0],[25728599,1,8,1,0],[25728599,0,8,1,0],[25732744,2,0,2,1],[25732744,1,2,1,0],[25808471,2,4,5,1],[25808471,1,5,1,0],[25808471,1,5,0,0],[25808471,0,5,1,0],[25808471,0,4,0,0],[25813416,2,8,9,1],[25813416,0,8,0,0],[25813416,1,8,0,0],[25813416,0,8,1,0],[25842174,2,1,4,1],[25842174,1,4,1,0],[25842174,1,4,0,0],[25842174,0,4,1,0],[25842174,0,1,0,0],[25842174,1,1,1,0],[25842174,0,1,1,0],[25894030,2,4,6,1],[25894030,1,6,1,0],[25894030,0,4,0,0],[25900639,2,2,4,2],[25900639,1,4,1,0],[25900639,1,4,0,0],[25900639,0,4,1,0],[25900639,0,2,0,0],[25900639,1,2,0,0],[25900639,0,2,1,0],[25908084,2,8,9,1],[25908084,0,8,0,0],[25973076,2,0,2,0],[25973076,1,2,1,0],[25982550,2,6,8,1],[25982550,1,8,1,0],[25982550,1,8,0,0],[25982550,0,8,1,0],[25982550,0,6,0,0],[25982550,1,6,0,0],[25982550,0,6,1,0],[26004103,2,4,5,2],[26004103,1,5,1,0],[26004103,0,4,0,0],[26025873,2,0,3,1],[26025873,1,3,1,0],[26025873,1,3,0,0],[26025873,0,3,1,0],[26036404,2,0,3,1],[26036404,1,3,1,0],[26063428,2,1,4,1],[26063428,1,4,1,0],[26063428,1,4,0,0],[26063428,0,4,1,0],[26063428,0,1,0,0],[26063428,1,1,0,0],[26063428,0,1,1,0],[26068654,2,2,4,1],[26068654,1,4,1,0],[26068654,0,2,0,0],[26068654,1,2,0,0],[26068654,0,2,1,0],[26069138,2,8,9,1],[26069138,0,8,0,0],[26173232,2,4,7,1],[26173232,1,7,1,0],[26173232,1,7,0,0],[26173232,0,7,1,0],[26173232,0,4,0,0],[26173232,1,4,0,0],[26173232,0,4,1,0],[26220231,2,0,1,1],[26220231,1,1,1,0],[26259971,2,5,8,1],[26259971,1,8,1,0],[26259971,1,8,0,0],[26259971,0,8,1,0],[26259971,0,5,0,0],[26259971,1,5,0,0],[26259971,0,5,1,0],[26268497,2,3,4,1],[26268497,1,4,1,0],[26268497,0,3,0,0],[26268497,1,3,0,0],[26268497,0,3,1,0],[26303710,2,4,7,1],[26303710,1,7,1,0],[26303710,0,4,0,0],[26303710,1,4,0,0],[26303710,0,4,1,0],[26320308,2,1,4,1],[26320308,1,4,1,0],[26320308,0,1,0,0],[26320308,1,1,0,0],[26320308,0,1,1,0],[26341653,2,2,4,0],[26341653,1,4,2,0],[26341653,0,2,0,0],[26358372,2,8,9,1],[26358372,0,8,0,0],[26397981,2,4,7,1],[26397981,1,7,2,0],[26397981,0,4,0,0],[26397981,1,4,1,0],[26397981,0,4,1,0],[26448791,2,6,8,1],[26448791,1,8,1,0],[26448791,1,8,0,0],[26448791,0,8,1,0],[26448791,0,6,0,0],[26466967,2,4,5,1],[26466967,1,5,1,0],[26466967,0,4,0,0],[26466967,1,4,0,0],[26466967,0,4,1,0],[26492741,2,0,1,0],[26492741,1,1,1,0],[26510931,2,0,2,1],[26510931,1,2,1,0],[26510931,1,2,0,0],[26510931,0,2,1,0],[26535846,2,8,9,1],[26535846,0,8,0,0],[26536473,2,4,8,0],[26536473,1,8,1,0],[26536473,1,8,0,0],[26536473,0,8,1,0],[26536473,0,4,0,0],[26543748,2,7,8,1],[26543748,1,8,1,0],[26543748,0,7,0,0],[26543748,1,7,1,0],[26543748,0,7,1,0],[26633001,2,8,9,0],[26633001,0,8,0,0],[26633001,1,8,0,0],[26633001,0,8,1,0],[26647335,2,3,4,1],[26647335,1,4,1,0],[26647335,1,4,0,0],[26647335,0,4,1,0],[26647335,0,3,0,0],[26677329,2,0,2,1],[26677329,1,2,1,0],[26694609,2,1,4,1],[26694609,1,4,1,0],[26694609,0,1,0,0],[26694609,1,1,0,0],[26694609,0,1,1,0],[26714984,2,8,9,1],[26714984,0,8,0,0],[26764723,2,0,1,1],[26764723,1,1,1,0],[26765441,2,4,5,1],[26765441,1,5,2,0],[26765441,0,4,0,0],[26765441,1,4,0,0],[26765441,0,4,1,0],[26772517,2,2,4,1],[26772517,1,4,1,0],[26772517,0,2,0,0],[26772517,1,2,0,0],[26772517,0,2,1,0],[26778861,2,5,8,2],[26778861,1,8,1,0],[26778861,1,8,0,0],[26778861,0,8,1,0],[26778861,0,5,0,0],[26778861,1,5,1,0],[26778861,0,5,1,0],[26793692,2,0,2,1],[26793692,1,2,1,0],[26844496,2,1,4,0],[26844496,1,4,2,0],[26844496,0,1,0,0],[26844496,1,1,0,0],[26844496,0,1,1,0],[26865180,2,0,1,1],[26865180,1,1,1,0],[26865896,2,4,5,1],[26865896,1,5,2,0],[26865896,0,4,0,0],[26865896,1,4,1,0],[26865896,0,4,1,0],[26899034,2,0,3,0],[26899034,1,3,1,0],[26899034,1,3,0,0],[26899034,0,3,1,0],[26907156,2,8,9,2],[26907156,0,8,0,0],[26946112,2,0,3,0],[26946112,1,3,1,0],[26986777,2,4,6,1],[26986777,1,6,1,0],[26986777,1,6,0,0],[26986777,0,6,1,0],[26986777,0,4,0,0],[26986777,1,4,0,0],[26986777,0,4,1,0],[26989597,2,2,4,1],[26989597,1,4,1,0],[26989597,0,2,0,0],[26989597,1,2,0,0],[26989597,0,2,1,0],[27004283,2,7,8,1],[27004283,1,8,1,0],[27004283,1,8,0,0],[27004283,0,8,1,0],[27004283,0,7,0,0],[27004283,1,7,0,0],[27004283,0,7,1,0],[27046148,2,4,8,0],[27046148,1,8,1,0],[27046148,0,4,0,0],[27046148,1,4,0,0],[27046148,0,4,1,0],[27067148,2,3,4,0],[27067148,1,4,1,0],[27067148,0,3,0,0],[27067148,1,3,0,0],[27067148,0,3,1,0],[27112576,2,8,9,1],[27112576,0,8,0,0],[27112576,1,8,0,0],[27112576,0,8,1,0],[27118943,2,4,6,1],[27118943,1,6,1,0],[27118943,0,4,0,0],[27118943,1,4,0,0],[27118943,0,4,1,0],[27146538,2,1,4,1],[27146538,1,4,1,0],[27146538,0,1,0,0],[27146538,1,1,0,0],[27146538,0,1,1,0],[27198212,2,4,8,0],[27198212,1,8,1,0],[27198212,0,4,0,0],[27198212,1,4,0,0],[27198212,0,4,1,0],[27220259,2,8,9,0],[27220259,0,8,0,0],[27220259,1,8,0,0],[27220259,0,8,1,0],[27263485,2,8,9,0],[27263485,0,8,0,0],[27265779,2,4,7,1],[27265779,1,7,1,0],[27265779,0,4,0,0],[27290831,2,2,4,1],[27290831,1,4,1,0],[27290831,1,4,0,0],[27290831,0,4,1,0],[27290831,0,2,0,0],[27312869,2,3,4,0],[27312869,1,4,1,0],[27312869,0,3,0,0],[27322445,2,5,8,1],[27322445,1,8,1,0],[27322445,1,8,0,0],[27322445,0,8,1,0],[27322445,0,5,0,0],[27322445,1,5,1,0],[27322445,0,5,1,0],[27380514,2,4,6,1],[27380514,1,6,2,0],[27380514,0,4,0,0],[27380514,1,4,0,0],[27380514,0,4,1,0],[27385580,2,6,8,1],[27385580,1,8,1,0],[27385580,0,6,0,0],[27385580,1,6,1,0],[27385580,0,6,1,0],[27431192,2,8,9,1],[27431192,0,8,0,0],[27431192,1,8,0,0],[27431192,0,8,1,0],[27472132,2,4,8,0],[27472132,1,8,1,0],[27472132,0,4,0,0],[27490589,2,1,4,1],[27490589,1,4,1,0],[27490589,1,4,0,0],[27490589,0,4,1,0],[27490589,0,1,0,0],[27514859,2,8,9,1],[27514859,0,8,0,0],[27514859,1,8,0,0],[27514859,0,8,1,0],[27535146,2,7,8,1],[27535146,1,8,1,0],[27535146,0,7,0,0],[27535146,1,7,0,0],[27535146,0,7,1,0],[27568131,2,0,1,1],[27568131,1,1,1,0],[27568131,1,1,0,0],[27568131,0,1,1,0],[27573550,2,4,5,1],[27573550,1,5,2,0],[27573550,0,4,0,0],[27601862,2,8,9,0],[27601862,0,8,0,0],[27601862,1,8,0,0],[27601862,0,8,1,0],[27663834,2,8,9,1],[27663834,0,8,0,0],[27751134,2,5,8,1],[27751134,1,8,1,0],[27751134,1,8,0,0],[27751134,0,8,1,0],[27751134,0,5,0,0],[27751134,1,5,1,0],[27751134,0,5,1,0],[27805653,2,1,4,1],[27805653,1,4,1,0],[27805653,1,4,0,0],[27805653,0,4,1,0],[27805653,0,1,0,0],[27821181,2,8,9,1],[27821181,0,8,0,0],[27898144,2,7,8,1],[27898144,1,8,1,0],[27898144,1,8,0,0],[27898144,0,8,1,0],[27898144,0,7,0,0],[27903365,2,6,8,1],[27903365,1,8,1,0],[27903365,0,6,0,0],[27903365,1,6,0,0],[27903365,0,6,1,0],[27906356,2,4,7,1],[27906356,1,7,1,0],[27906356,1,7,0,0],[27906356,0,7,1,0],[27906356,0,4,0,0],[27971365,2,8,9,1],[27971365,0,8,0,0],[27971365,1,8,0,0],[27971365,0,8,1,0],[28035620,2,8,9,1],[28035620,0,8,0,0],[28055277,2,5,8,1],[28055277,1,8,1,0],[28055277,1,8,0,0],[28055277,0,8,1,0],[28055277,0,5,0,0],[28055277,1,5,0,0],[28055277,0,5,1,0],[28141275,2,7,8,1],[28141275,1,8,1,0],[28141275,0,7,0,0],[28160217,2,8,9,1],[28160217,0,8,0,0],[28160217,1,8,0,0],[28160217,0,8,1,0],[28245020,2,8,9,1],[28245020,0,8,0,0],[28274764,2,0,1,0],[28274764,1,1,1,0],[28274764,1,1,0,0],[28274764,0,1,1,0],[28276297,2,0,1,1],[28276297,1,1,1,0],[28412107,2,6,8,1],[28412107,1,8,1,0],[28412107,1,8,0,0],[28412107,0,8,1,0],[28412107,0,6,0,0],[28425177,2,5,8,1],[28425177,1,8,1,0],[28425177,0,5,0,0],[28468471,2,8,9,1],[28468471,0,8,0,0],[28468471,1,8,0,0],[28468471,0,8,1,0],[28542311,2,8,9,1],[28542311,0,8,0,0],[28611224,2,1,4,0],[28611224,1,4,1,0],[28611224,1,4,0,0],[28611224,0,4,1,0],[28611224,0,1,0,0],[28611224,1,1,0,0],[28611224,0,1,1,0],[28621260,2,0,1,1],[28621260,1,1,1,0],[28658607,2,4,8,0],[28658607,1,8,1,0],[28658607,1,8,0,0],[28658607,0,8,1,0],[28658607,0,4,0,0],[28742607,2,8,9,0],[28742607,0,8,0,0]],"nodes":["commits","runner_1","runner_2","runner_3","unit_tests","int_env_1","int_env_2","int_env_3","deploy","prod"],"part_types":["docs","feature","hotfix"],"t_end_ms":28800000,"truncated":false},"types":[{"category":"source","description":"Creates parts. Mix of part types, random inter-arrival times.","name":"source","params":[{"default":{"dist":"exponential","mean":12.0},"doc":"Time between arrivals, seconds.","kind":"distribution","name":"interarrival"},{"default":{"part":1},"doc":"Part types and their relative weights, e.g. {\"A\": 3, \"B\": 1}.","kind":"object","name":"mix"},{"default":{},"doc":"Priority per part type (used by 'priority' queue discipline).","kind":"object","name":"priority"},{"choices":["drop","wait"],"default":"drop","doc":"When nothing downstream accepts: lose the arrival, or wait.","kind":"enum","name":"on_blocked"},{"default":-1,"doc":"Stop after this many parts (-1 = never).","kind":"integer","name":"max_parts"}]},{"category":"station","description":"A processing station: bounded buffer, stochastic service, optional failures and changeovers.","name":"machine","params":[{"default":5,"doc":"Buffer slots for waiting parts (the machine holds one more). -1 = unbounded.","kind":"integer","name":"capacity"},{"default":{"dist":"normal","mean":10.0,"stddev":1.5},"doc":"Processing time in seconds.","kind":"distribution","name":"process"},{"default":{},"doc":"Per part-type processing time overrides: {\"B\": {...}}.","kind":"object","name":"process_by_type"},{"default":null,"doc":"Changeover time added when the part type changes.","kind":"distribution","name":"setup"},{"choices":["fifo","lifo","priority"],"default":"fifo","doc":"Which waiting part is served next.","kind":"enum","name":"discipline"},{"choices":["block","drop"],"default":"block","doc":"Full buffer: block upstream (backpressure) or drop the arriving part.","kind":"enum","name":"on_full"},{"default":0.0,"doc":"Mean time between failures, seconds (0 = never fails).","kind":"number","name":"mtbf"},{"default":0.0,"doc":"Mean time to repair, seconds.","kind":"number","name":"mttr"},{"choices":["operating","wall"],"default":"operating","doc":"MTBF counts only busy time (operating) or calendar time (wall).","kind":"enum","name":"failure_clock"},{"choices":["resume","restart","scrap"],"default":"resume","doc":"Part in progress when the machine breaks: continue after repair, redo, or scrap.","kind":"enum","name":"on_failure"},{"default":1.0,"doc":"Multiplier on every processing time (what-if knob).","kind":"number","name":"process_scale"},{"default":1.0,"doc":"Multiplier on every repair time (what-if knob).","kind":"number","name":"repair_scale"}]},{"category":"station","description":"Groups parts into batches, then processes the batch as one unit.","name":"batcher","params":[{"default":5,"doc":"Buffer slots for waiting parts (the machine holds one more). -1 = unbounded.","kind":"integer","name":"capacity"},{"default":{"dist":"normal","mean":10.0,"stddev":1.5},"doc":"Processing time in seconds.","kind":"distribution","name":"process"},{"default":{},"doc":"Per part-type processing time overrides: {\"B\": {...}}.","kind":"object","name":"process_by_type"},{"default":null,"doc":"Changeover time added when the part type changes.","kind":"distribution","name":"setup"},{"choices":["fifo","lifo","priority"],"default":"fifo","doc":"Which waiting part is served next.","kind":"enum","name":"discipline"},{"choices":["block","drop"],"default":"block","doc":"Full buffer: block upstream (backpressure) or drop the arriving part.","kind":"enum","name":"on_full"},{"default":0.0,"doc":"Mean time between failures, seconds (0 = never fails).","kind":"number","name":"mtbf"},{"default":0.0,"doc":"Mean time to repair, seconds.","kind":"number","name":"mttr"},{"choices":["operating","wall"],"default":"operating","doc":"MTBF counts only busy time (operating) or calendar time (wall).","kind":"enum","name":"failure_clock"},{"choices":["resume","restart","scrap"],"default":"resume","doc":"Part in progress when the machine breaks: continue after repair, redo, or scrap.","kind":"enum","name":"on_failure"},{"default":1.0,"doc":"Multiplier on every processing time (what-if knob).","kind":"number","name":"process_scale"},{"default":1.0,"doc":"Multiplier on every repair time (what-if knob).","kind":"number","name":"repair_scale"},{"default":4,"doc":"Parts per batch.","kind":"integer","name":"batch_size"},{"default":0.0,"doc":"Release a partial batch after this many seconds (0 = wait for a full batch).","kind":"number","name":"timeout"},{"default":null,"doc":"Part type of the batch (default: type of the first part).","kind":"string","name":"output_type"}]},{"category":"station","description":"Waits for a complete kit of part types, then merges them into one product.","name":"assembler","params":[{"default":5,"doc":"Buffer slots PER PART TYPE (-1 = unbounded). Must cover the kit count.","kind":"integer","name":"capacity"},{"default":{"dist":"normal","mean":10.0,"stddev":1.5},"doc":"Processing time in seconds.","kind":"distribution","name":"process"},{"default":{},"doc":"Per part-type processing time overrides: {\"B\": {...}}.","kind":"object","name":"process_by_type"},{"default":null,"doc":"Changeover time added when the part type changes.","kind":"distribution","name":"setup"},{"choices":["fifo","lifo","priority"],"default":"fifo","doc":"Which waiting part is served next.","kind":"enum","name":"discipline"},{"choices":["block","drop"],"default":"block","doc":"Full buffer: block upstream (backpressure) or drop the arriving part.","kind":"enum","name":"on_full"},{"default":0.0,"doc":"Mean time between failures, seconds (0 = never fails).","kind":"number","name":"mtbf"},{"default":0.0,"doc":"Mean time to repair, seconds.","kind":"number","name":"mttr"},{"choices":["operating","wall"],"default":"operating","doc":"MTBF counts only busy time (operating) or calendar time (wall).","kind":"enum","name":"failure_clock"},{"choices":["resume","restart","scrap"],"default":"resume","doc":"Part in progress when the machine breaks: continue after repair, redo, or scrap.","kind":"enum","name":"on_failure"},{"default":1.0,"doc":"Multiplier on every processing time (what-if knob).","kind":"number","name":"process_scale"},{"default":1.0,"doc":"Multiplier on every repair time (what-if knob).","kind":"number","name":"repair_scale"},{"default":{"A":1,"B":1},"doc":"Parts required per assembly: {\"body\": 1, \"wheel\": 4}.","kind":"object","name":"kit"},{"default":"assembly","doc":"Part type of the assembled product.","kind":"string","name":"output_type"}]},{"category":"transport","description":"A conveyor: every part spends a transit time inside; unlimited parallelism.","name":"delay","params":[{"default":{"dist":"constant","value":5.0},"doc":"Transit time, seconds.","kind":"distribution","name":"transit"},{"default":-1,"doc":"Max parts on the conveyor (-1 = unbounded).","kind":"integer","name":"capacity"}]},{"category":"sink","description":"Terminal node. 'completed' sinks count as shipped output, 'scrapped' as waste.","name":"sink","params":[{"choices":["completed","scrapped"],"default":"completed","doc":"How parts arriving here are accounted.","kind":"enum","name":"counts_as"}]},{"category":"station","description":"CUSTOM: inspection with a quality threshold and rework budget (shows how to extend Machine).","name":"quality_gate","params":[{"default":5,"doc":"Buffer slots for waiting parts (the machine holds one more). -1 = unbounded.","kind":"integer","name":"capacity"},{"default":{"dist":"normal","mean":10.0,"stddev":1.5},"doc":"Processing time in seconds.","kind":"distribution","name":"process"},{"default":{},"doc":"Per part-type processing time overrides: {\"B\": {...}}.","kind":"object","name":"process_by_type"},{"default":null,"doc":"Changeover time added when the part type changes.","kind":"distribution","name":"setup"},{"choices":["fifo","lifo","priority"],"default":"fifo","doc":"Which waiting part is served next.","kind":"enum","name":"discipline"},{"choices":["block","drop"],"default":"block","doc":"Full buffer: block upstream (backpressure) or drop the arriving part.","kind":"enum","name":"on_full"},{"default":0.0,"doc":"Mean time between failures, seconds (0 = never fails).","kind":"number","name":"mtbf"},{"default":0.0,"doc":"Mean time to repair, seconds.","kind":"number","name":"mttr"},{"choices":["operating","wall"],"default":"operating","doc":"MTBF counts only busy time (operating) or calendar time (wall).","kind":"enum","name":"failure_clock"},{"choices":["resume","restart","scrap"],"default":"resume","doc":"Part in progress when the machine breaks: continue after repair, redo, or scrap.","kind":"enum","name":"on_failure"},{"default":1.0,"doc":"Multiplier on every processing time (what-if knob).","kind":"number","name":"process_scale"},{"default":1.0,"doc":"Multiplier on every repair time (what-if knob).","kind":"number","name":"repair_scale"},{"default":0.15,"doc":"Parts with quality below this fail inspection (quality ~ U[0,1]).","kind":"number","name":"threshold"},{"default":2,"doc":"Rework attempts before a failing part is scrapped.","kind":"integer","name":"max_reworks"},{"default":null,"doc":"Downstream node id for good parts.","kind":"string","name":"pass_to"},{"default":null,"doc":"Downstream node id for rework (empty = no rework).","kind":"string","name":"rework_to"},{"default":null,"doc":"Downstream node id for scrap (empty = pass anyway).","kind":"string","name":"scrap_to"}]}]};
+"use strict";
+// =============================================================== helpers
+const $ = s => document.querySelector(s);
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === 'class') e.className = v;
+    else if (k === 'style') e.style.cssText = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (v === true) e.setAttribute(k, '');
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat(Infinity)) { if (kid == null || kid === false) continue; e.append(kid.nodeType ? kid : document.createTextNode(String(kid))); }
+  return e;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (v, d = 1) => (v == null || isNaN(v)) ? '-' : Number(v).toLocaleString(undefined, {minimumFractionDigits: d, maximumFractionDigits: d});
+const hms = ms => { const s = Math.floor(ms / 1000); return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map(x => String(x).padStart(2, '0')).join(':'); };
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const KIND_COLOR = {source:'#3d9a78', machine:'#4a86d6', quality_gate:'#2e9aa6', delay:'#8794a6', batcher:'#c58a2b', assembler:'#b9647f', sink:'#6f7b8c'};
+const PART_COLORS = ['#4a86d6','#c58a2b','#3d9a78','#d6694a','#2e9aa6','#9aa64a','#8794a6','#b9647f'];
+const EMB = window.EMBEDDED || null;
+
+// =============================================================== state
+let cfg = {simulation: {duration_seconds: 7200, random_seed: 42, sample_interval: 30}, node_types: {}, nodes: []};
+let types = [];                 // node type schemas from the C++ registry
+let result = null;              // {summary, trace, whatif, replication}
+let sel = null;                 // {kind:'node', id} | {kind:'edge', from, idx}
+let rtab = 'node', restab = 'summary';
+let serverMode = !EMB;
+let dirtySinceRun = false;
+const view = {x: 0, y: 0, k: 1};
+const NW = 156, NH = 64;
+
+// replay
+let rp = null;                  // replay structures
+let playing = true, speed = 120;
+
+// =============================================================== config model
+const RESERVED = new Set(['id','type','label','name','x','y','params','routing','downstream','ui','color']);
+function normalizeCfg(c) {
+  const out = {simulation: Object.assign({}, c.simulation || {}), node_types: c.node_types || {}, nodes: []};
+  if (c.name) out.name = c.name;
+  if (c.description) out.description = c.description;
+  for (const n of c.nodes || []) {
+    const m = {id: n.id, type: n.type, params: Object.assign({}, n.params || {}), downstream: (n.downstream || []).map(d => typeof d === 'string' ? {to: d} : Object.assign({}, d))};
+    if (n.label || n.name) m.label = n.label || n.name;
+    if (n.x != null) { m.x = n.x; m.y = n.y; }
+    if (n.routing) m.routing = n.routing;
+    for (const k of Object.keys(n)) if (!RESERVED.has(k)) m.params[k] = n[k];
+    out.nodes.push(m);
+  }
+  return out;
+}
+function baseTypeOf(type) {
+  for (let i = 0; i < 16; i++) {
+    if (types.find(t => t.name === type)) return type;
+    const t = cfg.node_types[type]; if (!t) return type; type = t.base;
+  }
+  return type;
+}
+function schemaOf(type) { return types.find(t => t.name === baseTypeOf(type)); }
+function templateDefaults(type) {   // params contributed by node_types inheritance
+  const chain = []; let t = type;
+  for (let i = 0; i < 16 && cfg.node_types[t]; i++) { chain.unshift(cfg.node_types[t]); t = cfg.node_types[t].base; }
+  return Object.assign({}, ...chain.map(c => c.params || {}));
+}
+const nodeById = id => cfg.nodes.find(n => n.id === id);
+const kindOf = n => baseTypeOf(n.type);
+
+function autoLayout() {
+  const depth = new Map(); const q = [];
+  cfg.nodes.filter(n => kindOf(n) === 'source').forEach(n => { depth.set(n.id, 0); q.push(n.id); });
+  while (q.length) { const id = q.shift(); for (const e of nodeById(id).downstream) if (!depth.has(e.to) && nodeById(e.to)) { depth.set(e.to, depth.get(id) + 1); q.push(e.to); } }
+  let extra = 0; cfg.nodes.forEach(n => { if (!depth.has(n.id)) depth.set(n.id, extra++); });
+  const layers = {};
+  cfg.nodes.forEach(n => (layers[depth.get(n.id)] = layers[depth.get(n.id)] || []).push(n));
+  for (const [d, list] of Object.entries(layers)) list.forEach((n, i) => { n.x = 100 + d * 250; n.y = 80 + (i - (list.length - 1) / 2) * 150 + 220; });
+}
+function ensureLayout() { if (cfg.nodes.some(n => n.x == null)) autoLayout(); }
+function uniqueId(base) { let i = 1; while (nodeById(base + '_' + i)) i++; return base + '_' + i; }
+
+function markDirty() { dirtySinceRun = !!result && serverMode; $('#stale').style.display = dirtySinceRun ? '' : 'none'; draw(); }
+
+// =============================================================== api
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  let j; try { j = await r.json(); } catch (e) { throw new Error('server returned no JSON'); }
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+function toast(text, info) { const m = $('#msg'); m.textContent = text; m.className = info ? 'info' : ''; m.style.display = text ? 'block' : 'none'; if (info) setTimeout(() => { if (m.textContent === text) m.style.display = 'none'; }, 2500); }
+
+async function run(opts = {}) {
+  if (!serverMode) return toast('This is an offline replay. Start `factory_sim serve` to run simulations.');
+  toast('');
+  $('#bRun').disabled = true; $('#bRun').textContent = 'Running...';
+  try {
+    const data = await api('/api/run', Object.assign({config: cfg, trace: true}, opts));
+    if (opts.whatif || opts.replications) { result = Object.assign(result || {}, {whatif: data.whatif || (result && result.whatif), replication: data.replication || (result && result.replication)}); if (!result.summary) result = data; }
+    else result = data;
+    dirtySinceRun = false; $('#stale').style.display = 'none';
+    if (!opts.whatif && !opts.replications) { buildReplay(); restab = 'summary'; }
+    else restab = opts.whatif ? 'whatif' : 'rep';
+    renderResults(); draw();
+  } catch (e) { toast(e.message); }
+  $('#bRun').disabled = false; $('#bRun').textContent = 'Run simulation';
+}
+
+// =============================================================== replay
+function buildReplay() {
+  const t = result && result.trace; if (!t) { rp = null; return; }
+  const n = t.nodes.length;
+  const idToCfg = t.nodes.map(id => cfg.nodes.findIndex(x => x.id === id));
+  rp = {t, ev: t.events, ri: 0, time: 0, end: t.t_end_ms, nstate: new Int8Array(n), nq: new Int32Array(n), flights: [], cps: [], idToCfg, lastApplied: 0};
+  const stride = 1500;
+  const ns = new Int8Array(n), nq = new Int32Array(n);
+  rp.cps.push({ri: 0, ns: ns.slice(), nq: nq.slice()});
+  for (let i = 0; i < rp.ev.length; i++) {
+    const [, k, a, b] = rp.ev[i];
+    if (k === 0) ns[a] = b; else if (k === 1) nq[a] = b;
+    if ((i + 1) % stride === 0) rp.cps.push({ri: i + 1, ns: ns.slice(), nq: nq.slice()});
+  }
+  rp.stride = stride;
+  $('#scrub').max = rp.end; $('#scrub').value = 0; $('#tEnd').textContent = hms(rp.end);
+  playing = true; $('#bPlay').textContent = 'Pause';
+}
+function seek(ms) {
+  if (!rp) return;
+  ms = Math.max(0, Math.min(rp.end, ms));
+  if (ms < rp.time) {                       // rewind to the nearest checkpoint
+    let cp = rp.cps[0];
+    for (const c of rp.cps) { if (c.ri < rp.ev.length && rp.ev[c.ri] && rp.ev[c.ri][0] <= ms) cp = c; else if (c.ri === 0) cp = c; }
+    rp.nstate.set(cp.ns); rp.nq.set(cp.nq); rp.ri = cp.ri; rp.flights = [];
+  }
+  const ev = rp.ev; let pushed = 0; const now = performance.now();
+  while (rp.ri < ev.length && ev[rp.ri][0] <= ms) {
+    const [, k, a, b, c] = ev[rp.ri++];
+    if (k === 0) rp.nstate[a] = b; else if (k === 1) rp.nq[a] = b;
+    else if (k === 2 && playing && ms - rp.time < 4000 * speed / 60 && pushed++ < 60) rp.flights.push({a, b, c, w0: now});
+  }
+  rp.time = ms;
+}
+function stateOf(cfgIdx) {
+  if (!rp) return null;
+  const ti = rp.idToCfg.indexOf(cfgIdx);
+  return ti < 0 ? null : {state: rp.nstate[ti], q: rp.nq[ti]};
+}
+
+// =============================================================== canvas
+const cv = $('#cv'), ctx = cv.getContext('2d');
+let dpr = 1, cw = 0, ch = 0;
+function resize() {
+  const r = $('#stage').getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cw = r.width; ch = r.height; cv.width = Math.max(1, cw * dpr); cv.height = Math.max(1, ch * dpr);
+}
+let userMoved = false;   // once the user pans/zooms we stop auto-fitting the view
+new ResizeObserver(() => { resize(); if (!userMoved) fitView(); draw(); }).observe($('#stage'));
+const toScreen = (x, y) => ({x: x * view.k + view.x, y: y * view.k + view.y});
+const toWorld = (x, y) => ({x: (x - view.x) / view.k, y: (y - view.y) / view.k});
+function fitView() {
+  if (!cfg.nodes.length) return;
+  ensureLayout();
+  const xs = cfg.nodes.map(n => n.x), ys = cfg.nodes.map(n => n.y);
+  const minX = Math.min(...xs) - NW * 0.75, maxX = Math.max(...xs) + NW * 0.75, minY = Math.min(...ys) - 60, maxY = Math.max(...ys) + 90;
+  view.k = Math.min(1.5, Math.max(0.3, Math.min(cw / (maxX - minX), ch / (maxY - minY))));
+  view.x = (cw - (maxX + minX) * view.k) / 2; view.y = (ch - (maxY + minY) * view.k) / 2;
+}
+function bez(g, u) {
+  const m = 1 - u;
+  return {x: m*m*m*g.p0.x + 3*m*m*u*g.p1.x + 3*m*u*u*g.p2.x + u*u*u*g.p3.x, y: m*m*m*g.p0.y + 3*m*m*u*g.p1.y + 3*m*u*u*g.p2.y + u*u*u*g.p3.y};
+}
+function geom(a, b) {
+  if (b.x - a.x > NW + 20) {
+    const p0 = {x: a.x + NW / 2, y: a.y}, p3 = {x: b.x - NW / 2, y: b.y}, dx = (p3.x - p0.x) * 0.5;
+    return {p0, p1: {x: p0.x + dx, y: p0.y}, p2: {x: p3.x - dx, y: p3.y}, p3};
+  }
+  const dir = b.y < a.y ? -1 : 1, drop = 80 + Math.abs(b.x - a.x) * 0.12;
+  const p0 = {x: a.x, y: a.y + dir * NH / 2}, p3 = {x: b.x, y: b.y + dir * NH / 2};
+  return {p0, p1: {x: a.x + (b.x - a.x) * 0.1, y: p0.y + dir * drop}, p2: {x: b.x - (b.x - a.x) * 0.1, y: p3.y + dir * drop}, p3};
+}
+const STATE_COL = ['--idle', '--busy', '--blocked', '--down'];
+const STATE_NAME = ['Starved', 'Busy', 'Blocked', 'Down'];
+function draw() {
+  if (!cw) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cw, ch);
+  const C = {line: css('--line'), strong: css('--line-strong'), ink: css('--ink'), muted: css('--muted'), accent: css('--accent'),
+             panel: css('--panel'), raised: css('--raised'), rework: css('--rework'), warn: css('--warn'), bad: css('--bad'), good: css('--busy')};
+  const gs = 32 * view.k; ctx.fillStyle = css('--grid');
+  if (gs > 9) for (let x = ((view.x % gs) + gs) % gs; x < cw; x += gs) for (let y = ((view.y % gs) + gs) % gs; y < ch; y += gs) ctx.fillRect(x, y, 1.5, 1.5);
+  ctx.save(); ctx.translate(view.x, view.y); ctx.scale(view.k, view.k);
+  ctx.textBaseline = 'middle';
+  const sum = result && result.summary;
+  const dead = new Set(sum && sum.deadlock ? sum.deadlock.blocked : []);
+  const now = performance.now();
+  const activeEdges = new Set();
+  if (rp) for (const f of rp.flights) if (now - f.w0 < 480) activeEdges.add(rp.t.nodes[f.a] + '>' + rp.t.nodes[f.b]);
+
+  // ---- edges
+  ctx.textAlign = 'center';
+  for (const n of cfg.nodes) {
+    const tot = n.downstream.reduce((acc, e) => acc + (Number(e.weight) || 1), 0);
+    n.downstream.forEach((e, i) => {
+      const m = nodeById(e.to); if (!m || m === n) return;
+      const g = geom(n, m), isSel = sel && sel.kind === 'edge' && sel.from === n.id && sel.idx === i, hot = activeEdges.has(n.id + '>' + m.id);
+      const col = isSel || hot ? C.accent : e.rework ? C.rework : C.strong;
+      ctx.strokeStyle = col; ctx.fillStyle = col;
+      ctx.lineWidth = isSel ? 2.5 : hot ? 2.5 : 1.5;
+      ctx.setLineDash(e.rework ? [8, 5] : e.bypass ? [2, 4] : []);
+      ctx.beginPath(); ctx.moveTo(g.p0.x, g.p0.y); ctx.bezierCurveTo(g.p1.x, g.p1.y, g.p2.x, g.p2.y, g.p3.x, g.p3.y); ctx.stroke();
+      ctx.setLineDash([]);
+      const a = Math.atan2(g.p3.y - g.p2.y, g.p3.x - g.p2.x);
+      ctx.beginPath(); ctx.moveTo(g.p3.x, g.p3.y); ctx.lineTo(g.p3.x - 10 * Math.cos(a - .4), g.p3.y - 10 * Math.sin(a - .4)); ctx.lineTo(g.p3.x - 10 * Math.cos(a + .4), g.p3.y - 10 * Math.sin(a + .4)); ctx.closePath(); ctx.fill();
+      const mid = bez(g, .5);
+      const weighted = n.downstream.length > 1 && kindOf(n) !== 'quality_gate' && !(n.routing && n.routing.rules && n.routing.rules.length);
+      let label = weighted ? Math.round(100 * (Number(e.weight) || 1) / tot) + '%' : '';
+      if (e.rework) label = (label ? label + ' ' : '') + 'rework';
+      if (e.bypass) label = (label ? label + ' ' : '') + 'bypass';
+      if (e.label && !e.rework) label = (label ? label + ' ' : '') + e.label;
+      if (label) {
+        ctx.font = '500 11px Inter, system-ui, sans-serif'; const w = ctx.measureText(label).width + 16;
+        ctx.fillStyle = C.panel; ctx.beginPath(); ctx.roundRect(mid.x - w / 2, mid.y - 10, w, 20, 4); ctx.fill();
+        ctx.strokeStyle = isSel ? C.accent : C.line; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = e.rework ? C.rework : C.muted; ctx.fillText(label, mid.x, mid.y + 1);
+      } else {
+        ctx.fillStyle = C.panel; ctx.strokeStyle = isSel ? C.accent : C.strong; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(mid.x, mid.y, 4.5, 0, 7); ctx.fill(); ctx.stroke();
+      }
+    });
+  }
+
+  // ---- nodes: flat cards, kind strip on the left, utilisation bar along the bottom
+  const bn = sum ? sum.bottleneck : null;
+  const by = {}; if (sum) for (const r of sum.nodes) by[r.id] = r;
+  cfg.nodes.forEach((n, idx) => {
+    const x = n.x - NW / 2, y = n.y - NH / 2, k = kindOf(n), kc = KIND_COLOR[k] || KIND_COLOR.machine;
+    const st = stateOf(idx), r = by[n.id];
+    const isSel = sel && sel.kind === 'node' && sel.id === n.id, isDead = dead.has(n.id);
+    const stateCol = st ? css(STATE_COL[st.state]) : null;
+    if (isSel) { ctx.strokeStyle = C.accent; ctx.globalAlpha = .28; ctx.lineWidth = 7; ctx.beginPath(); ctx.roundRect(x, y, NW, NH, 8); ctx.stroke(); ctx.globalAlpha = 1; }
+    ctx.fillStyle = C.raised; ctx.beginPath(); ctx.roundRect(x, y, NW, NH, 8); ctx.fill();
+    ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, NW, NH, 8); ctx.clip();
+    ctx.fillStyle = kc; ctx.fillRect(x, y, 5, NH);
+    if (r && r.station) {                       // utilisation bar: busy / blocked / down share of the run
+      const bx = x + 5, bw = NW - 5; let off = 0; ctx.fillStyle = C.line; ctx.fillRect(bx, y + NH - 4, bw, 4);
+      for (const [v, c] of [[r.busy_pct, css('--busy')], [r.blocked_pct, css('--blocked')], [r.down_pct, css('--down')]]) { const w = bw * v / 100; ctx.fillStyle = c; ctx.fillRect(bx + off, y + NH - 4, w, 4); off += w; }
+    }
+    ctx.restore();
+    ctx.strokeStyle = isDead ? C.bad : isSel ? C.accent : (stateCol || C.strong); ctx.lineWidth = isDead ? 2.5 : (isSel || stateCol) ? 2 : 1.5;
+    ctx.beginPath(); ctx.roundRect(x, y, NW, NH, 8); ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = C.ink; ctx.font = '600 13px Inter, system-ui, sans-serif'; ctx.fillText(trunc(n.label || n.id, 19), x + 18, y + 22);
+    ctx.font = '11.5px Inter, system-ui, sans-serif';
+    if (st) {
+      ctx.fillStyle = stateCol; ctx.fillRect(x + 18, y + 36, 8, 8);
+      ctx.fillStyle = C.muted; ctx.fillText(STATE_NAME[st.state], x + 32, y + 41);
+    } else { ctx.fillStyle = C.muted; ctx.fillText(k.replace('_', ' '), x + 18, y + 41); }
+    // queue slots under the card
+    if (st && k !== 'source' && k !== 'sink') {
+      const s_ = schemaOf(n.type); const capSpec = n.params.capacity ?? templateDefaults(n.type).capacity ?? (s_ && (s_.params.find(p => p.name === 'capacity') || {}).default);
+      const cap = (typeof capSpec === 'number') ? capSpec : -1;
+      const slots = cap > 0 && cap <= 12 ? cap : Math.min(Math.max(st.q, 4), 12);
+      for (let i = 0; i < slots; i++) {
+        const sx = x + i * 14, sy = y + NH + 8;
+        ctx.strokeStyle = C.strong; ctx.lineWidth = 1; ctx.strokeRect(sx + .5, sy + .5, 10, 10);
+        if (i < st.q) { ctx.fillStyle = (cap > 0 && st.q >= cap) ? css('--blocked') : C.accent; ctx.fillRect(sx + 2.5, sy + 2.5, 6, 6); }
+      }
+      if (st.q > slots) { ctx.fillStyle = C.muted; ctx.font = '11px Inter, system-ui, sans-serif'; ctx.fillText('+' + (st.q - slots), x + slots * 14 + 4, y + NH + 14); }
+    }
+    // tags
+    const tag = (text, col, tx) => { ctx.font = '600 10px Inter, system-ui, sans-serif'; const w = ctx.measureText(text).width + 14; ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(tx, y - 24, w, 18, 3); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(text, tx + 7, y - 14); };
+    if (isDead) tag('DEADLOCK', C.bad, x);
+    else if (n.id === bn && !(sum && sum.deadlock)) tag('BOTTLENECK', C.warn, x);
+    if (isSel && k !== 'sink') { ctx.fillStyle = C.accent; ctx.strokeStyle = C.panel; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(n.x + NW / 2 + 11, n.y, 7, 0, 7); ctx.fill(); ctx.stroke(); }
+  });
+
+  // ---- parts travelling between nodes
+  if (rp) {
+    rp.flights = rp.flights.filter(f => now - f.w0 < 480);
+    for (const f of rp.flights) {
+      const a = nodeById(rp.t.nodes[f.a]), b = nodeById(rp.t.nodes[f.b]); if (!a || !b) continue;
+      const u = (now - f.w0) / 480, e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+      const p = bez(geom(a, b), e);
+      ctx.fillStyle = PART_COLORS[f.c % PART_COLORS.length]; ctx.strokeStyle = C.panel; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7); ctx.fill(); ctx.stroke();
+    }
+  }
+  ctx.restore();
+  if (!cfg.nodes.length) { ctx.fillStyle = C.muted; ctx.font = '14px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Empty pipeline. Add a source from the left panel, then keep adding nodes.', cw / 2, ch / 2); }
+  $('#hint').textContent = rp ? 'Replay ' + hms(rp.time) + ' / ' + hms(rp.end) + (rp.t.truncated ? ' (trace truncated)' : '') : (serverMode ? 'Edit the pipeline, then run it' : 'Offline replay');
+}
+const trunc = (s, n) => s.length > n ? s.slice(0, n - 1) + '...' : s;
+
+// =============================================================== canvas interaction
+let drag = null;
+function hitNode(wx, wy) { for (let i = cfg.nodes.length - 1; i >= 0; i--) { const n = cfg.nodes[i]; if (Math.abs(wx - n.x) <= NW / 2 && Math.abs(wy - n.y) <= NH / 2) return n; } return null; }
+function hitHandle(wx, wy) { if (!sel || sel.kind !== 'node') return null; const n = nodeById(sel.id); if (n && kindOf(n) !== 'sink' && Math.hypot(wx - (n.x + NW / 2 + 9), wy - n.y) < 11) return n; return null; }
+function hitEdge(wx, wy) {
+  for (const n of cfg.nodes) for (let i = 0; i < n.downstream.length; i++) { const m = nodeById(n.downstream[i].to); if (!m || m === n) continue; const mid = bez(geom(n, m), .5); if (Math.hypot(wx - mid.x, wy - mid.y) < 14) return {from: n.id, idx: i}; }
+  return null;
+}
+cv.addEventListener('mousedown', ev => {
+  const r = cv.getBoundingClientRect(), p = toWorld(ev.clientX - r.left, ev.clientY - r.top);
+  const hd = hitHandle(p.x, p.y);
+  if (hd) { drag = {type: 'connect', from: hd, x: p.x, y: p.y}; return; }
+  const n = hitNode(p.x, p.y);
+  if (n) { sel = {kind: 'node', id: n.id}; drag = {type: 'node', n, dx: p.x - n.x, dy: p.y - n.y, moved: false}; renderInspector(); draw(); return; }
+  const e = hitEdge(p.x, p.y);
+  if (e) { sel = {kind: 'edge', from: e.from, idx: e.idx}; renderInspector(); draw(); return; }
+  sel = null; userMoved = true; drag = {type: 'pan', sx: ev.clientX, sy: ev.clientY, vx: view.x, vy: view.y}; cv.style.cursor = 'grabbing'; renderInspector(); draw();
+});
+window.addEventListener('mousemove', ev => {
+  if (!drag) return;
+  const r = cv.getBoundingClientRect(), p = toWorld(ev.clientX - r.left, ev.clientY - r.top);
+  if (drag.type === 'node') { drag.n.x = Math.round((p.x - drag.dx) / 10) * 10; drag.n.y = Math.round((p.y - drag.dy) / 10) * 10; drag.moved = true; draw(); }
+  else if (drag.type === 'pan') { view.x = drag.vx + ev.clientX - drag.sx; view.y = drag.vy + ev.clientY - drag.sy; draw(); }
+  else if (drag.type === 'connect') { drag.x = p.x; drag.y = p.y; draw(); const a = drag.from; const s = toScreen(a.x + NW / 2 + 9, a.y), t = toScreen(p.x, p.y); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.strokeStyle = css('--accent'); ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y); ctx.stroke(); ctx.setLineDash([]); }
+});
+window.addEventListener('mouseup', ev => {
+  if (!drag) return;
+  if (drag.type === 'connect') {
+    const r = cv.getBoundingClientRect(), p = toWorld(ev.clientX - r.left, ev.clientY - r.top), t = hitNode(p.x, p.y);
+    if (t && t !== drag.from && kindOf(t) !== 'source' && !drag.from.downstream.some(e => e.to === t.id)) { drag.from.downstream.push({to: t.id}); markDirty(); renderInspector(); }
+  } else if (drag.type === 'node' && drag.moved) markDirty();
+  drag = null; cv.style.cursor = 'grab'; draw();
+});
+cv.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  const r = cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top, p = toWorld(mx, my);
+  userMoved = true;
+  view.k = Math.max(0.25, Math.min(2.5, view.k * (ev.deltaY < 0 ? 1.1 : 1 / 1.1)));
+  view.x = mx - p.x * view.k; view.y = my - p.y * view.k; draw();
+}, {passive: false});
+window.addEventListener('keydown', ev => {
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { run(); return; }
+  if (typing) return;
+  if ((ev.key === 'Delete' || ev.key === 'Backspace') && sel) { deleteSelection(); ev.preventDefault(); }
+  else if (ev.key === ' ') { togglePlay(); ev.preventDefault(); }
+  else if (ev.key === 'Escape') { sel = null; renderInspector(); draw(); }
+});
+function deleteSelection() {
+  if (!sel) return;
+  if (sel.kind === 'node') { cfg.nodes = cfg.nodes.filter(n => n.id !== sel.id); cfg.nodes.forEach(n => n.downstream = n.downstream.filter(e => e.to !== sel.id)); }
+  else { const n = nodeById(sel.from); if (n) n.downstream.splice(sel.idx, 1); }
+  sel = null; markDirty(); renderInspector();
+}
+
+// =============================================================== palette
+function addNode(type) {
+  const base = baseTypeOf(type); const s = schemaOf(type);
+  const id = uniqueId(type.replace(/[^a-z0-9_]/gi, '_'));
+  const from = sel && sel.kind === 'node' ? nodeById(sel.id) : null;
+  const n = {id, type, params: {}, downstream: []};
+  if (from && kindOf(from) !== 'sink' && base !== 'source') { n.x = from.x + 200; n.y = from.y + (from.downstream.length * 90); from.downstream.push({to: id}); }
+  else { const c = toWorld(cw / 2, ch / 2); n.x = Math.round(c.x / 10) * 10 + (cfg.nodes.length % 5) * 20; n.y = Math.round(c.y / 10) * 10 + (cfg.nodes.length % 5) * 20; }
+  cfg.nodes.push(n); sel = {kind: 'node', id}; rtab = 'node'; syncTabs(); markDirty(); renderInspector();
+}
+function renderPalette() {
+  const p = $('#palette'); p.innerHTML = '';
+  for (const t of types) p.append(h('button', {class: 'pal', title: t.description, onclick: () => addNode(t.name)}, h('i', {style: 'background:' + (KIND_COLOR[t.name] || KIND_COLOR.machine)}), h('span', {}, h('b', {}, t.name.replace('_', ' ')), h('small', {}, t.category))));
+  const tp = $('#templates'); tp.innerHTML = '';
+  const names = Object.keys(cfg.node_types);
+  if (!names.length) tp.textContent = 'None yet. Select a node and use Save as node type.';
+  for (const nm of names) tp.append(h('button', {class: 'pal', title: 'based on ' + cfg.node_types[nm].base, onclick: () => addNode(nm)}, h('i', {style: 'background:' + (KIND_COLOR[baseTypeOf(nm)] || KIND_COLOR.machine)}), h('span', {}, h('b', {}, nm), h('small', {}, 'based on ' + cfg.node_types[nm].base))));
+}
+
+// =============================================================== inspector
+function syncTabs() { document.querySelectorAll('#rtabs button').forEach(b => b.classList.toggle('on', b.dataset.t === rtab)); }
+$('#rtabs').addEventListener('click', e => { if (e.target.dataset.t) { rtab = e.target.dataset.t; syncTabs(); renderInspector(); } });
+
+function numInput(value, placeholder, onset, step) {
+  return h('input', {type: 'number', step: step || 'any', value: value ?? '', placeholder: placeholder ?? '', oninput: e => onset(e.target.value === '' ? undefined : Number(e.target.value))});
+}
+function distEditor(cur, def, set) {
+  const KINDS = {constant: ['value'], exponential: ['mean'], normal: ['mean', 'stddev'], uniform: ['min', 'max'], triangular: ['min', 'mode', 'max'], lognormal: ['mean', 'stddev']};
+  const asObj = v => v == null ? null : typeof v === 'number' ? {dist: 'constant', value: v} : v;
+  const emit = obj => set(obj.dist === 'constant' ? obj.value : obj);
+  const o = asObj(cur) || asObj(def) || {dist: 'constant', value: 1};
+  const isSet = cur != null;
+  if (cur == null && def == null) {   // optional and unset: offer a choice instead of inventing a value
+    return h('select', {onchange: e => { if (e.target.value) { const k = e.target.value; const nobj = {dist: k}; KINDS[k].forEach((f, i) => nobj[f] = i === 0 ? 5 : 1); emit(nobj); renderInspector(); } }},
+      h('option', {value: ''}, '(none)'), Object.keys(KINDS).map(k => h('option', {value: k}, k)));
+  }
+  const wrap = h('div', {});
+  const kindSel = h('select', {onchange: e => { const k = e.target.value; const nobj = {dist: k}; KINDS[k].forEach((f, i) => nobj[f] = i === 0 ? (o.mean || o.value || 10) : (f === 'stddev' ? 1 : (o[f] ?? (o.mean || 10)))); emit(nobj); renderInspector(); }},
+    Object.keys(KINDS).map(k => h('option', {value: k, selected: k === o.dist}, k)));
+  const fields = h('div', {class: 'row2', style: 'margin-top:4px'}, KINDS[o.dist].map(f => h('div', {style: 'flex:1'}, h('div', {class: 'small'}, f), numInput(o[f], '', v => { const nobj = Object.assign({}, o, {dist: o.dist}); nobj[f] = v ?? 0; emit(nobj); }))));
+  wrap.append(kindSel, fields);
+  if (!isSet) wrap.style.opacity = .7;
+  return wrap;
+}
+function mapEditor(cur, def, set) {
+  const obj = cur || def || {};
+  const wrap = h('div', {});
+  const rows = Object.entries(obj);
+  const write = list => { const o = {}; list.forEach(([k, v]) => { if (k) o[k] = v; }); set(o); };
+  rows.forEach(([k, v], i) => wrap.append(h('div', {class: 'row2', style: 'margin-bottom:3px'},
+    h('input', {value: k, style: 'flex:1', onchange: e => { const l = rows.slice(); l[i] = [e.target.value, v]; write(l); }}),
+    h('input', {type: 'number', step: 'any', value: v, style: 'width:70px', oninput: e => { const l = rows.slice(); l[i] = [k, Number(e.target.value)]; write(l); }}),
+    h('button', {onclick: () => { const l = rows.slice(); l.splice(i, 1); write(l); renderInspector(); }}, 'Del'))));
+  wrap.append(h('button', {onclick: () => { const l = rows.slice(); l.push(['type_' + (rows.length + 1), 1]); write(l); renderInspector(); }}, 'Add row'));
+  if (cur == null) wrap.style.opacity = .75;
+  return wrap;
+}
+function paramControl(n, spec) {
+  const eff = Object.assign({}, templateDefaults(n.type));
+  const has = Object.prototype.hasOwnProperty.call(n.params, spec.name);
+  const cur = has ? n.params[spec.name] : eff[spec.name];
+  const defaultShown = eff[spec.name] !== undefined ? eff[spec.name] : spec.default;
+  const set = v => { if (v === undefined) delete n.params[spec.name]; else n.params[spec.name] = v; markDirty(); };
+  const lab = h('label', {title: spec.doc}, spec.name, has ? h('button', {class: 'x', title: 'reset to default', onclick: () => { set(undefined); renderInspector(); }}, 'Reset') : null);
+  let ctl;
+  switch (spec.kind) {
+    case 'number': case 'integer': ctl = numInput(has ? cur : '', defaultShown ?? '', set, spec.kind === 'integer' ? 1 : 'any'); break;
+    case 'boolean': ctl = h('input', {type: 'checkbox', checked: !!cur, onchange: e => set(e.target.checked)}); break;
+    case 'enum': ctl = h('select', {onchange: e => set(e.target.value === '' ? undefined : e.target.value)}, h('option', {value: ''}, '(default: ' + (defaultShown ?? '') + ')'), spec.choices.map(c => h('option', {value: c, selected: has && cur === c}, c))); break;
+    case 'string': ctl = h('input', {value: has ? cur : '', placeholder: defaultShown ?? '', list: 'dl-' + n.id, oninput: e => set(e.target.value === '' ? undefined : e.target.value)}); break;
+    case 'distribution': ctl = distEditor(has ? cur : eff[spec.name], spec.default, set); break;
+    case 'object':
+      if (['mix', 'priority', 'kit'].includes(spec.name)) ctl = mapEditor(has ? cur : eff[spec.name], has ? null : spec.default, set);
+      else ctl = h('textarea', {rows: 3, placeholder: JSON.stringify(spec.default), onchange: e => { try { const t = e.target.value.trim(); set(t ? JSON.parse(t) : undefined); e.target.style.borderColor = ''; } catch (x) { e.target.style.borderColor = 'var(--bad)'; } }}, has ? JSON.stringify(cur, null, 1) : '');
+      break;
+    default: ctl = h('input', {value: cur ?? ''});
+  }
+  return h('div', {class: 'prm'}, lab, ctl, h('div', {class: 'doc'}, spec.doc));
+}
+function renameNode(n, newId) {
+  newId = newId.trim(); if (!newId || newId === n.id || nodeById(newId)) return false;
+  cfg.nodes.forEach(m => m.downstream.forEach(e => { if (e.to === n.id) e.to = newId; }));
+  if (sel && sel.kind === 'node' && sel.id === n.id) sel.id = newId;
+  n.id = newId; return true;
+}
+function renderInspector() {
+  const box = $('#inspector'); box.innerHTML = '';
+  if (rtab === 'sim') return renderSimTab(box);
+  if (rtab === 'json') return renderJsonTab(box);
+  if (!sel) { box.append(h('div', {class: 'small'}, 'Select a node or an edge on the canvas to edit it.'), h('div', {class: 'sect', style: 'margin-top:20px'}, h('b', {}, cfg.name || 'Untitled pipeline'), h('div', {class: 'small'}, cfg.description || ('Nodes: ' + cfg.nodes.length)))); return; }
+  if (sel.kind === 'edge') return renderEdgeInspector(box);
+  const n = nodeById(sel.id); if (!n) { sel = null; return; }
+  const s = schemaOf(n.type);
+  box.append(h('div', {class: 'prm'}, h('label', {}, 'id'), h('input', {value: n.id, onchange: e => { if (renameNode(n, e.target.value)) markDirty(); else e.target.value = n.id; renderInspector(); }})));
+  box.append(h('div', {class: 'prm'}, h('label', {}, 'label'), h('input', {value: n.label || '', placeholder: n.id, oninput: e => { n.label = e.target.value || undefined; draw(); }})));
+  const typeOpts = [...types.map(t => t.name), ...Object.keys(cfg.node_types)];
+  box.append(h('div', {class: 'prm'}, h('label', {}, 'type'), h('select', {onchange: e => { n.type = e.target.value; markDirty(); renderInspector(); }}, typeOpts.map(t => h('option', {value: t, selected: t === n.type}, t)))));
+  if (s) box.append(h('div', {class: 'small', style: 'margin:-6px 0 20px'}, s.description));
+  box.append(h('datalist', {id: 'dl-' + n.id}, n.downstream.map(e => h('option', {value: e.to}))));
+  if (s) s.params.forEach(p => box.append(paramControl(n, p)));
+  // routing
+  const rt = n.routing || {};
+  box.append(h('div', {class: 'sect'}, h('b', {}, 'Routing'),
+    h('div', {class: 'small'}, 'How this node picks among its downstream edges.'),
+    h('div', {class: 'prm', style: 'margin-top:6px'}, h('label', {}, 'policy'), h('select', {onchange: e => { n.routing = Object.assign({}, n.routing, {policy: e.target.value}); if (e.target.value === 'probabilistic' && !(n.routing.rules || []).length) delete n.routing; markDirty(); }},
+      ['probabilistic', 'round_robin', 'shortest_queue', 'first_available'].map(p => h('option', {value: p, selected: (rt.policy || 'probabilistic') === p}, p)))),
+    h('details', {open: !!(rt.rules && rt.rules.length)}, h('summary', {}, 'rules (first match wins)'),
+      h('textarea', {rows: 4, placeholder: '[{"match":{"type":"A"},"to":"line_a"},{"to":"line_b"}]', onchange: e => { try { const t = e.target.value.trim(); n.routing = Object.assign({}, n.routing || {}); if (t) n.routing.rules = JSON.parse(t); else delete n.routing.rules; if (!Object.keys(n.routing).length) delete n.routing; e.target.style.borderColor = ''; markDirty(); } catch (x) { e.target.style.borderColor = 'var(--bad)'; } }}, rt.rules ? JSON.stringify(rt.rules, null, 1) : ''))));
+  // connections
+  const ds = h('div', {class: 'sect'}, h('b', {style: 'margin-bottom:12px'}, 'Connections'));
+  n.downstream.forEach((e, i) => ds.append(h('div', {class: 'edge'},
+    h('div', {class: 'row2'}, h('select', {style: 'flex:1', onchange: ev => { e.to = ev.target.value; markDirty(); }}, cfg.nodes.filter(m => m !== n && kindOf(m) !== 'source').map(m => h('option', {value: m.id, selected: m.id === e.to}, m.id))),
+      numInput(e.weight ?? '', 'weight 1', v => { if (v === undefined) delete e.weight; else e.weight = v; markDirty(); }, 'any'),
+      h('button', {onclick: () => { n.downstream.splice(i, 1); markDirty(); renderInspector(); }}, 'Remove')),
+    h('label', {title: 'increments the part\'s rework counter'}, h('input', {type: 'checkbox', checked: !!e.rework, onchange: ev => { e.rework = ev.target.checked || undefined; if (!e.rework) delete e.rework; markDirty(); }}), 'rework'),
+    ' ', h('label', {title: 'target accepts the part even when its buffer is full (breaks deadlock loops)'}, h('input', {type: 'checkbox', checked: !!e.bypass, onchange: ev => { e.bypass = ev.target.checked || undefined; if (!e.bypass) delete e.bypass; markDirty(); }}), 'bypass lane'))));
+  ds.append(h('button', {onclick: () => { const c = cfg.nodes.find(m => m !== n && kindOf(m) !== 'source' && !n.downstream.some(e => e.to === m.id)); if (c) { n.downstream.push({to: c.id}); markDirty(); renderInspector(); } }}, 'Add connection'));
+  box.append(ds);
+  box.append(h('div', {class: 'actions'},
+    h('button', {onclick: () => { const nm = prompt('Name for the new node type (e.g. "cnc_lathe"):', n.type + '_custom'); if (!nm) return; if (types.find(t => t.name === nm)) return toast('That name is a built-in type'); cfg.node_types[nm] = {base: n.type, params: JSON.parse(JSON.stringify(n.params))}; n.type = nm; n.params = {}; renderPalette(); markDirty(); renderInspector(); toast('Saved node type "' + nm + '". It now appears under My node types.', true); }}, 'Save as node type'),
+    h('button', {class: 'danger', onclick: deleteSelection}, 'Delete node')));
+}
+function renderEdgeInspector(box) {
+  const n = nodeById(sel.from), e = n && n.downstream[sel.idx]; if (!e) { sel = null; return; }
+  box.append(h('div', {class: 'sect'}, h('b', {}, n.id + ' to ' + e.to),
+    h('div', {class: 'prm', style: 'margin-top:12px'}, h('label', {}, 'weight (relative share)'), numInput(e.weight ?? '', '1', v => { if (v === undefined) delete e.weight; else e.weight = v; markDirty(); })),
+    h('div', {class: 'prm'}, h('label', {}, 'label'), h('input', {value: e.label || '', oninput: ev => { e.label = ev.target.value || undefined; draw(); }})),
+    h('label', {class: 'small'}, h('input', {type: 'checkbox', checked: !!e.rework, onchange: ev => { e.rework = ev.target.checked || undefined; markDirty(); }}), ' rework edge (counts a rework)'), h('br'),
+    h('label', {class: 'small'}, h('input', {type: 'checkbox', checked: !!e.bypass, onchange: ev => { e.bypass = ev.target.checked || undefined; markDirty(); }}), ' bypass lane (ignores target capacity)'),
+    h('div', {style: 'margin-top:14px'}, h('button', {class: 'danger', onclick: deleteSelection}, 'Delete connection'))));
+}
+function renderSimTab(box) {
+  const s = cfg.simulation;
+  const field = (key, label, def, step) => h('div', {class: 'prm'}, h('label', {}, label), numInput(s[key] ?? '', def, v => { if (v === undefined) delete s[key]; else s[key] = v; markDirty(); }, step));
+  box.append(field('duration_seconds', 'duration (simulated seconds)', 3600), field('random_seed', 'random seed', 42, 1), field('warmup_seconds', 'warm-up (excluded from statistics)', 0),
+    field('sample_interval', 'telemetry sample interval (s, 0 = off)', 60),
+    h('label', {class: 'small'}, h('input', {type: 'checkbox', checked: s.stop_on_deadlock !== false, onchange: e => { s.stop_on_deadlock = e.target.checked; markDirty(); }}), ' stop the run at the first deadlock'),
+    h('div', {class: 'prm', style: 'margin-top:10px'}, h('label', {}, 'name'), h('input', {value: cfg.name || '', oninput: e => { cfg.name = e.target.value || undefined; }})));
+}
+function renderJsonTab(box) {
+  const ta = h('textarea', {rows: 28, spellcheck: 'false'}, JSON.stringify(cfg, null, 2));
+  const err = h('div', {class: 'small', style: 'color:var(--bad);min-height:18px'});
+  box.append(ta, err, h('button', {onclick: async () => { try { await loadConfig(JSON.parse(ta.value), true); err.textContent = ''; toast('Applied', true); } catch (e) { err.textContent = e.message; } }}, 'Apply JSON'),
+    h('div', {class: 'small', style: 'margin-top:6px'}, 'This is the exact file format used by the CLI. Save it and run: factory_sim run pipeline.json'));
+}
+
+// =============================================================== results panel
+function stackBar(r) {
+  const seg = (v, c) => h('i', {style: 'width:' + v + '%;background:var(' + c + ')', title: fmt(v, 1) + '%'});
+  return h('div', {class: 'bar'}, seg(r.busy_pct, '--busy'), seg(r.blocked_pct, '--blocked'), seg(r.down_pct, '--down'), seg(r.idle_pct, '--idle'));
+}
+function renderResults() {
+  const box = $('#results'); box.innerHTML = '';
+  if (!result || !result.summary) { box.append(h('div', {class: 'small'}, 'Run the simulation to see throughput, bottlenecks and an animated replay.')); return; }
+  const tabs = h('div', {class: 'tabs'}, [['summary', 'Summary'], ['nodes', 'Nodes'], ['chart', 'WIP over time'], ['whatif', 'What-if'], ['rep', 'Replications']].map(([k, l]) => h('button', {class: restab === k ? 'on' : '', onclick: () => { restab = k; renderResults(); }}, l)));
+  box.append(tabs);
+  const s = result.summary;
+  if (restab === 'summary') {
+    box.append(h('div', {class: 'kpis'},
+      kpi(fmt(s.uph, 1), 'units / hour'), kpi(s.completed, 'completed'), kpi(s.scrapped, 'scrapped'), kpi(fmt(s.lost_pct, 1) + '%', 'arrivals lost'),
+      kpi(fmt(s.avg_wip, 1), 'avg WIP'), kpi(fmt(s.cycle_time_s, 0) + ' s', 'cycle time'), kpi(fmt(s.little.gap_pct, 1) + '%', "Little's Law gap"), kpi(s.conservation_ok ? 'Pass' : 'Fail', 'unit conservation')));
+    box.append(h('div', {class: 'banner ' + (s.deadlock ? 'bad' : s.demand_limited ? '' : 'warn')}, h('div', {class: 'bt'}, s.deadlock ? 'Deadlock' : s.demand_limited ? 'Diagnosis' : 'Bottleneck'), s.diagnosis || 'No diagnosis.'));
+    (s.warnings || []).forEach(w => box.append(h('div', {class: 'banner warn'}, h('div', {class: 'bt'}, 'Warning'), w)));
+    box.append(h('div', {class: 'note'}, "Little's Law: L = " + fmt(s.little.L, 2) + " units, λ·W = " + fmt(s.little.lambda * s.little.W, 2) + ". The small gap comes from units still in flight at the cut-off."));
+  } else if (restab === 'nodes') {
+    const t = h('table', {}, h('tr', {}, ['node', 'kind', 'state mix (busy / blocked / down / starved)', 'busy%', 'blocked%', 'down%', 'avg Q', 'max Q', 'wait s', 'units', 'index'].map(c => h('th', {}, c))));
+    for (const r of s.nodes) t.append(h('tr', {class: 'row', onclick: () => { sel = {kind: 'node', id: r.id}; rtab = 'node'; syncTabs(); renderInspector(); draw(); }},
+      h('td', {}, r.id, r.id === s.bottleneck && !s.deadlock ? h('span', {class: 'tag'}, 'Bottleneck') : null), h('td', {}, r.kind),
+      h('td', {}, stackBar(r)), h('td', {}, fmt(r.busy_pct, 1)), h('td', {}, fmt(r.blocked_pct, 1)), h('td', {}, fmt(r.down_pct, 1)),
+      h('td', {}, fmt(r.avg_occupancy, 2)), h('td', {}, r.max_occupancy), h('td', {}, fmt(r.avg_wait_s, 1)), h('td', {}, r.processed_units), h('td', {}, r.station ? fmt(r.bottleneck_index, 0) : '')));
+    box.append(t);
+  } else if (restab === 'chart') {
+    const c = h('canvas', {width: 900, height: 200, style: 'width:100%;height:210px;background:var(--raised);border:1px solid var(--line);border-radius:8px'}); box.append(c);
+    box.append(h('div', {class: 'note', style: 'margin-top:10px'}, 'Blue: units in the system (WIP). Green: cumulative completed units / 10. The vertical line follows the replay.'));
+    drawChart(c);
+  } else if (restab === 'whatif') {
+    if (!result.whatif) {
+      box.append(h('div', {class: 'note'}, 'Tries +2 buffer slots, 10% faster processing and 20% shorter repairs at the three most-constrained stations, over several 8-hour runs with common random numbers, and reports the measured throughput change.'),
+        h('button', {class: 'primary', disabled: !serverMode, onclick: () => run({whatif: true, trace: false})}, 'Run what-if analysis'));
+    } else {
+      const w = result.whatif, max = Math.max(1, ...w.results.map(r => Math.abs(r.delta)));
+      box.append(h('div', {class: 'banner'}, h('div', {class: 'bt'}, 'Recommendation'), w.recommendation), h('div', {class: 'note'}, 'Baseline: ' + fmt(w.base_uph, 1) + ' units/hour (' + w.reps + ' seeds)'));
+      const t = h('table', {}, h('tr', {}, ['node', 'change', 'units/h', 'Δ', 'Δ%', ''].map(c => h('th', {}, c))));
+      w.results.forEach(r => t.append(h('tr', {}, h('td', {}, r.node), h('td', {}, r.change), h('td', {}, fmt(r.uph, 1)), h('td', {style: 'color:var(' + (r.delta >= 0 ? '--good' : '--bad') + ')'}, (r.delta >= 0 ? '+' : '') + fmt(r.delta, 1)), h('td', {}, fmt(r.delta_pct, 1) + '%'), h('td', {style: 'width:30%'}, h('div', {class: 'deltabar', style: 'width:' + Math.max(1, 100 * Math.abs(r.delta) / max) + '%;background:var(' + (r.delta >= 0 ? '--good' : '--bad') + ')'})))));
+      box.append(t);
+    }
+  } else if (restab === 'rep') {
+    if (!result.replication) box.append(h('div', {class: 'note'}, 'Runs 20 independent replications (different seeds, in parallel) and reports mean ± 95% confidence interval.'), h('button', {class: 'primary', disabled: !serverMode, onclick: () => run({replications: 20, trace: false})}, 'Run 20 replications'));
+    else { const r = result.replication, row = (n, st, u) => h('tr', {}, h('td', {}, n), h('td', {}, fmt(st.mean, 2)), h('td', {}, '± ' + fmt(st.ci95, 2)), h('td', {}, fmt(st.sd, 2)), h('td', {}, u));
+      box.append(h('div', {class: 'note'}, r.n + ' replications, 95% confidence' + (r.deadlocks ? ' (' + r.deadlocks + ' deadlocked)' : '')),
+        h('table', {}, h('tr', {}, ['metric', 'mean', '95% CI', 'std dev', ''].map(c => h('th', {}, c))), row('throughput', r.uph, 'units/h'), row('avg WIP', r.avg_wip, 'units'), row('cycle time', r.cycle_time_s, 's'), row('arrivals lost', r.lost_pct, '%'))); }
+  }
+}
+const kpi = (v, l) => h('div', {class: 'kpi'}, h('b', {}, v), h('span', {}, l));
+function drawChart(c) {
+  const g = c.getContext('2d'), W = c.width, H = c.height, s = result.summary.samples; if (!s.length) { g.fillStyle = css('--muted'); g.fillText('no samples (sample interval is 0)', 20, 30); return; }
+  const tmax = s[s.length - 1][0], wmax = Math.max(1, ...s.map(p => p[1])), cmax = Math.max(1, ...s.map(p => p[2] / 10)), ymax = Math.max(wmax, cmax) * 1.1, pad = 28;
+  g.clearRect(0, 0, W, H); g.strokeStyle = css('--line'); g.fillStyle = css('--muted'); g.font = '11px system-ui'; g.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) { const y = pad / 2 + (H - pad) * i / 4; g.beginPath(); g.moveTo(pad, y); g.lineTo(W - 6, y); g.stroke(); g.fillText(fmt(ymax * (1 - i / 4), 0), 2, y + 3); }
+  const X = t => pad + (W - pad - 8) * t / tmax, Y = v => pad / 2 + (H - pad) * (1 - v / ymax);
+  const line = (idx, div, col) => { g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); s.forEach((p, i) => { const x = X(p[0]), y = Y(p[idx] / div); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); };
+  line(2, 10, css('--good')); line(1, 1, css('--accent'));
+  if (rp) { const x = X(rp.time / 1000); g.strokeStyle = css('--warn'); g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, 4); g.lineTo(x, H - pad / 2); g.stroke(); }
+  g.fillStyle = css('--muted'); g.fillText(hms(tmax * 1000), W - 60, H - 4); g.fillText('0', pad, H - 4);
+}
+
+// =============================================================== loading / saving
+async function loadConfig(c, keepResult) {
+  if (c.stations && serverMode) c = await api('/api/normalize', c);
+  cfg = normalizeCfg(c); ensureLayout(); sel = null;
+  if (!keepResult) { result = null; rp = null; $('#stale').style.display = 'none'; }
+  renderPalette(); renderInspector(); renderResults(); userMoved = false; fitView(); draw(); markDirty();
+}
+function download(name, text, mime) { const a = h('a', {href: URL.createObjectURL(new Blob([text], {type: mime || 'application/json'})), download: name}); document.body.append(a); a.click(); a.remove(); }
+
+$('#bRun').onclick = () => run();
+$('#bWhatIf').onclick = () => { restab = 'whatif'; if (result && result.whatif) renderResults(); else if (result) renderResults(); else run().then(() => { restab = 'whatif'; renderResults(); }); };
+$('#bRep').onclick = () => { restab = 'rep'; if (result) renderResults(); else run().then(() => { restab = 'rep'; renderResults(); }); };
+$('#bNew').onclick = () => loadConfig({simulation: {duration_seconds: 3600, random_seed: 42, sample_interval: 30}, nodes: []});
+$('#bLayout').onclick = () => { autoLayout(); userMoved = false; fitView(); draw(); };
+$('#bSave').onclick = () => download((cfg.name || 'pipeline').replace(/[^a-z0-9]+/gi, '_').toLowerCase() + '.json', JSON.stringify(cfg, null, 2));
+$('#bLoad').onclick = () => $('#file').click();
+$('#file').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { await loadConfig(JSON.parse(await f.text())); } catch (x) { toast('Could not load: ' + x.message); } e.target.value = ''; };
+$('#bAudit').onclick = async () => {
+  if (!serverMode) return toast('Start `factory_sim serve` to generate audit reports.');
+  if (!cfg.nodes.length) return toast('Add some nodes first.');
+  const btn = $('#bAudit'); btn.disabled = true; btn.textContent = 'Auditing...'; toast('');
+  try {
+    const r = await fetch('/api/audit', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({config: cfg, reps: 10})});
+    if (!r.ok) throw new Error((await r.json()).error);
+    const blob = await r.blob(), score = r.headers.get('X-Audit-Score');
+    const a = h('a', {href: URL.createObjectURL(blob), download: (cfg.name || 'pipeline').replace(/[^a-z0-9]+/gi, '_').toLowerCase() + '_audit.pdf'});
+    document.body.append(a); a.click(); a.remove();
+    toast('Audit report downloaded' + (score ? ' (health score ' + score + '/100)' : ''), true);
+  } catch (e) { toast(e.message); }
+  btn.disabled = false; btn.textContent = 'Audit report (PDF)';
+};
+$('#bExport').onclick = async () => {
+  if (!serverMode) return toast('Already an offline export.');
+  try { const r = await fetch('/api/export', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({config: cfg, trace: true})}); if (!r.ok) throw new Error((await r.json()).error); download('factory_replay.html', await r.text(), 'text/html'); }
+  catch (e) { toast(e.message); }
+};
+$('#examples').onchange = async e => { const ex = window._examples && window._examples.find(x => x.name === e.target.value); if (ex) { await loadConfig(ex.config); run(); } };
+
+function togglePlay() { if (!rp) return; playing = !playing; if (playing && rp.time >= rp.end) { rp.time = 0; seek(0); } $('#bPlay').textContent = playing ? 'Pause' : 'Play'; }
+$('#bPlay').onclick = togglePlay;
+$('#bRes').onclick = () => { const r = $('#results'); r.classList.toggle('hide'); setTimeout(() => { resize(); if (!userMoved) fitView(); draw(); }, 60); $('#bRes').textContent = r.classList.contains('hide') ? 'Show results' : 'Hide results'; };
+$('#speed').onchange = e => speed = Number(e.target.value);
+$('#scrub').oninput = e => { if (rp) { seek(Number(e.target.value)); } };
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (rp && playing) {
+    seek(rp.time + dt * speed * 1000);
+    if (rp.time >= rp.end) { playing = false; $('#bPlay').textContent = 'Play'; }
+  }
+  if (rp) { $('#scrub').value = rp.time; $('#tNow').textContent = hms(rp.time); }
+  const needAnim = rp && (playing || rp.flights.length) || (result && result.summary && result.summary.deadlock);
+  if (needAnim || drag) draw(); else if (rp && !playing) draw();
+  if (restab === 'chart' && result && playing && now % 3 < 1.5) { const c = document.querySelector('#results canvas'); if (c) drawChart(c); }
+  requestAnimationFrame(frame);
+}
+
+// =============================================================== boot
+async function boot() {
+  resize();
+  if (EMB) {
+    types = EMB.types || []; cfg = normalizeCfg(EMB.config); ensureLayout();
+    result = {summary: EMB.summary, trace: EMB.trace, whatif: EMB.whatif, replication: EMB.replication};
+    $('#examples').style.display = 'none'; ['bRun', 'bWhatIf', 'bRep', 'bExport', 'bNew', 'bAudit'].forEach(i => $('#' + i).style.display = 'none');
+    renderPalette(); fitView(); buildReplay(); renderResults(); renderInspector(); draw();
+  } else {
+    try {
+      types = await api('/api/types');
+      const ex = await api('/api/examples'); window._examples = ex;
+      const sel_ = $('#examples'); sel_.append(h('option', {value: ''}, 'Load example')); ex.forEach(x => sel_.append(h('option', {value: x.name}, (x.config.name || x.name))));
+      const first = ex.find(x => x.name === 'sample_factory') || ex[0];
+      if (first) { await loadConfig(first.config); run(); } else { renderPalette(); renderInspector(); renderResults(); }
+    } catch (e) { toast('Cannot reach the factory_sim server: ' + e.message); }
+  }
+  requestAnimationFrame(frame);
+}
+boot();
+</script>
+</body>
+</html>

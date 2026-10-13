@@ -1,0 +1,18 @@
+{
+  "name": "Logistics: e-commerce fulfilment",
+  "description": "Orders are picked by three pickers (express orders jump the queue), then packed at two stations; 3% fail packing checks and go back to picking over a bypass lane. A sorter routes express orders to a courier dock and standard ones into 15-order truck loads that depart after 15 minutes at the latest. Packing is the constraint.",
+  "simulation": {"duration_seconds": 28800, "random_seed": 44, "warmup_seconds": 1800, "sample_interval": 120},
+  "nodes": [
+    {"id": "orders", "type": "source", "label": "Online orders", "x": 100, "y": 350, "interarrival": {"dist": "exponential", "mean": 45}, "mix": {"standard": 0.75, "express": 0.25}, "priority": {"express": 2}, "routing": {"policy": "shortest_queue"}, "downstream": ["picker_1", "picker_2", "picker_3"]},
+    {"id": "picker_1", "type": "machine", "label": "Picker 1", "x": 370, "y": 170, "capacity": 8, "discipline": "priority", "process": {"dist": "normal", "mean": 60, "stddev": 15}, "routing": {"policy": "shortest_queue"}, "downstream": ["pack_1", "pack_2"]},
+    {"id": "picker_2", "type": "machine", "label": "Picker 2", "x": 370, "y": 350, "capacity": 8, "discipline": "priority", "process": {"dist": "normal", "mean": 60, "stddev": 15}, "routing": {"policy": "shortest_queue"}, "downstream": ["pack_1", "pack_2"]},
+    {"id": "picker_3", "type": "machine", "label": "Picker 3", "x": 370, "y": 530, "capacity": 8, "discipline": "priority", "process": {"dist": "normal", "mean": 60, "stddev": 15}, "routing": {"policy": "shortest_queue"}, "downstream": ["pack_1", "pack_2"]},
+    {"id": "pack_1", "type": "machine", "label": "Pack station 1", "x": 640, "y": 245, "capacity": 4, "discipline": "priority", "process": {"dist": "normal", "mean": 75, "stddev": 15}, "downstream": [{"to": "labeler", "weight": 0.97}, {"to": "picker_1", "weight": 0.01, "rework": true, "bypass": true, "label": "repick"}, {"to": "picker_2", "weight": 0.01, "rework": true, "bypass": true, "label": "repick"}, {"to": "picker_3", "weight": 0.01, "rework": true, "bypass": true, "label": "repick"}]},
+    {"id": "pack_2", "type": "machine", "label": "Pack station 2", "x": 640, "y": 470, "capacity": 4, "discipline": "priority", "process": {"dist": "normal", "mean": 75, "stddev": 15}, "downstream": [{"to": "labeler", "weight": 0.97}, {"to": "picker_1", "weight": 0.01, "rework": true, "bypass": true, "label": "repick"}, {"to": "picker_2", "weight": 0.01, "rework": true, "bypass": true, "label": "repick"}, {"to": "picker_3", "weight": 0.01, "rework": true, "bypass": true, "label": "repick"}]},
+    {"id": "labeler", "type": "machine", "label": "Labeling", "x": 910, "y": 350, "capacity": 5, "process": {"dist": "normal", "mean": 8, "stddev": 2}, "downstream": ["sorter"]},
+    {"id": "sorter", "type": "machine", "label": "Sorter", "x": 1180, "y": 350, "capacity": 5, "process": 3, "routing": {"policy": "first_available", "rules": [{"match": {"type": "express"}, "to": "express_dock"}, {"to": "standard_batch"}]}, "downstream": ["express_dock", "standard_batch"]},
+    {"id": "express_dock", "type": "machine", "label": "Express courier dock", "x": 1450, "y": 200, "capacity": 4, "process": 30, "downstream": ["shipped"]},
+    {"id": "standard_batch", "type": "batcher", "label": "Truck load (x15)", "x": 1450, "y": 500, "batch_size": 15, "timeout": 900, "capacity": 30, "process": 60, "downstream": ["shipped"]},
+    {"id": "shipped", "type": "sink", "label": "Out for delivery", "x": 1720, "y": 350}
+  ]
+}

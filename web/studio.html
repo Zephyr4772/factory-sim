@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factory Studio</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f3f4f6; --panel:#ffffff; --raised:#ffffff; --line:#e1e5ea; --line-strong:#b8c0cb;
+  --ink:#1b2129; --muted:#667180; --accent:#2563d6; --accent-soft:rgba(37,99,214,.10);
+  --idle:#8a94a3; --busy:#1f9461; --blocked:#c98a14; --down:#d03a37; --rework:#17909c; --grid:#dfe3e9;
+  --good:#1f9461; --warn:#c98a14; --bad:#d03a37;
+}
+*{box-sizing:border-box}
+*{scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:5px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:content-box}
+::-webkit-scrollbar-corner{background:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+button,select,input,textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line-strong);border-radius:6px}
+button{height:34px;padding:0 14px;font-weight:500;cursor:pointer;white-space:nowrap}
+button:hover{background:var(--raised);border-color:var(--muted)}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.primary:hover{filter:brightness(1.1)}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.45;cursor:not-allowed}
+select,input{height:34px;padding:0 10px}
+input[type=number]{width:100%}
+input[type=checkbox]{width:16px;height:16px;padding:0;accent-color:var(--accent)}
+input[type=range]{height:auto;padding:0;border:0;accent-color:var(--accent)}
+textarea{width:100%;padding:8px 10px;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.5;resize:vertical}
+
+header{min-height:60px;flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding:10px 24px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{font-weight:700;font-size:15px;white-space:nowrap}
+.brand span{color:var(--muted);font-weight:400;margin-left:8px}
+.group{display:flex;align-items:center;gap:8px;padding-left:16px;border-left:1px solid var(--line)}
+.sp{flex:1}
+.chip{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:12px;font-size:12px;background:var(--raised);border:1px solid var(--line-strong);color:var(--muted)}
+.chip.flag{border-color:var(--warn);color:var(--warn)}
+#msg{display:none;flex:none;padding:10px 24px;background:var(--bad);color:#fff;font-weight:500}
+#msg.info{background:var(--accent)}
+
+.workspace{flex:1;min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr) 360px}
+.side{background:var(--panel);overflow:auto;padding:24px 20px}
+.side.left{border-right:1px solid var(--line)}
+.side.right{border-left:1px solid var(--line)}
+.side h4{margin:28px 0 12px;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.9px;text-transform:uppercase}
+.side h4:first-child{margin-top:0}
+.pal{display:flex;align-items:center;gap:12px;width:100%;height:auto;margin:0 0 8px;padding:10px 12px;text-align:left;background:var(--raised);border-color:var(--line)}
+.pal:hover{border-color:var(--accent)}
+.pal i{width:4px;align-self:stretch;border-radius:2px;flex:none}
+.pal b{display:block;font-weight:600}
+.pal small{display:block;color:var(--muted);font-size:12px;line-height:1.3}
+.tips{color:var(--muted);font-size:12.5px;line-height:1.7}
+.tips p{margin:0 0 8px}
+kbd{font-family:ui-monospace,Consolas,monospace;font-size:11px;padding:1px 6px;border:1px solid var(--line-strong);border-radius:4px;background:var(--raised)}
+
+.center{display:flex;flex-direction:column;min-width:0;min-height:0}
+.stage{position:relative;flex:1;min-height:240px;background:var(--bg)}
+canvas#cv{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+.legend{position:absolute;left:20px;bottom:16px;display:flex;gap:18px;font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 14px}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.hint{position:absolute;right:20px;bottom:16px;color:var(--muted);font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 14px;pointer-events:none}
+.playbar{flex:none;display:flex;align-items:center;gap:16px;padding:12px 24px;border-top:1px solid var(--line);background:var(--panel)}
+.playbar input[type=range]{flex:1}
+.playbar #bPlay{width:76px}
+.mono{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+.timer{font-size:13px;min-width:72px}
+.results{flex:none;height:clamp(190px,32vh,320px);border-top:1px solid var(--line);background:var(--panel);overflow:auto;padding:0 24px 24px}
+.results.hide{display:none}
+.tabs{display:flex;gap:4px;margin:0 0 18px;border-bottom:1px solid var(--line)}
+.tabs button{height:40px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted);padding:0 14px;margin-bottom:-1px}
+.tabs button:hover{color:var(--ink);background:transparent}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+.results .tabs{position:sticky;top:0;background:var(--panel);padding-top:12px;z-index:1}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.kpi b{display:block;font-size:22px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+.kpi span{display:block;margin-top:2px;color:var(--muted);font-size:12px}
+.banner{border:1px solid var(--line-strong);border-radius:8px;padding:14px 16px;margin-bottom:12px;background:var(--raised)}
+.banner .bt{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.banner.bad{border-color:var(--bad)} .banner.bad .bt{color:var(--bad)}
+.banner.warn{border-color:var(--warn)} .banner.warn .bt{color:var(--warn)}
+.note{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:11px;letter-spacing:.6px;text-transform:uppercase}
+tr.row{cursor:pointer}
+tr.row:hover{background:var(--raised)}
+.bar{display:flex;height:10px;border-radius:2px;overflow:hidden;background:var(--line);min-width:160px}
+.bar i{display:block;height:100%}
+.tag{display:inline-block;margin-left:10px;padding:1px 8px;border-radius:3px;font-size:11px;font-weight:600;background:var(--warn);color:#fff}
+.deltabar{height:8px;border-radius:2px;min-width:2px}
+
+/* inspector */
+.prm{margin:0 0 18px}
+.prm>label{display:flex;justify-content:space-between;align-items:center;color:var(--ink);font-size:12.5px;font-weight:500;margin-bottom:6px}
+.prm .x{height:auto;border:0;background:transparent;padding:0;font-size:12px;font-weight:500;color:var(--accent)}
+.prm .x:hover{background:transparent;text-decoration:underline}
+.prm .doc{color:var(--muted);font-size:12px;margin-top:6px;line-height:1.45}
+.row2{display:flex;gap:8px;align-items:center}
+.row2>*{min-width:0}
+.edge{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px}
+.edge .row2{margin-bottom:10px}
+.edge label{display:inline-flex;gap:8px;align-items:center;color:var(--muted);font-size:12.5px;margin-right:14px}
+.sect{border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px;background:var(--raised)}
+.sect>b{display:block;margin-bottom:4px}
+.small{font-size:12.5px;color:var(--muted);line-height:1.5}
+details>summary{cursor:pointer;color:var(--muted);margin:12px 0 8px;font-size:12.5px}
+.actions{display:flex;gap:8px;margin-top:8px}
+@media (max-width:1300px){ .brand span{display:none} }
+@media (max-width:1100px){ .workspace{grid-template-columns:1fr} .side{max-height:220px} body{overflow:auto} .group{display:none} }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Factory Studio<span>pipeline simulator</span></div>
+  <div class="group">
+    <select id="examples" title="Load an example pipeline"></select>
+    <button id="bNew">New</button>
+    <button id="bLayout" title="Re-space the nodes left to right">Auto-layout</button>
+  </div>
+  <div class="group">
+    <button id="bLoad">Open file</button>
+    <button id="bSave">Save file</button>
+  </div>
+  <input type="file" id="file" accept=".json,application/json" style="display:none">
+  <span class="sp"></span>
+  <span id="stale" class="chip flag" style="display:none">Results out of date</span>
+  <div class="group">
+    <button id="bWhatIf" title="Measure which improvement helps the most">What-if</button>
+    <button id="bRep" title="20 independent runs with confidence intervals">Replicate x20</button>
+    <button id="bAudit" title="Generate an audit and health report (PDF) for this pipeline">Audit report (PDF)</button>
+    <button id="bExport" title="Download a self-contained replay page">Export replay</button>
+  </div>
+  <button id="bRun" class="primary" title="Ctrl+Enter">Run simulation</button>
+</header>
+<div id="msg"></div>
+
+<div class="workspace">
+  <aside class="side left">
+    <h4>Add node</h4>
+    <div id="palette"></div>
+    <h4>My node types</h4>
+    <div id="templates" class="small">None yet. Select a node and use Save as node type.</div>
+    <h4>Tips</h4>
+    <div class="tips">
+      <p>Click a type to add it. If a node is selected, the new node is wired after it.</p>
+      <p>Drag the round handle on a selected node onto another node to connect them.</p>
+      <p>Scroll to zoom, drag the background to pan. <kbd>Del</kbd> removes the selection, <kbd>Space</kbd> plays or pauses.</p>
+    </div>
+  </aside>
+
+  <main class="center">
+    <div class="stage" id="stage">
+      <canvas id="cv"></canvas>
+      <div class="legend"><span><i style="background:var(--idle)"></i>Starved</span><span><i style="background:var(--busy)"></i>Busy</span><span><i style="background:var(--blocked)"></i>Blocked</span><span><i style="background:var(--down)"></i>Down</span></div>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="playbar">
+      <button id="bPlay">Pause</button>
+      <span class="mono timer" id="tNow">00:00:00</span>
+      <input type="range" id="scrub" min="0" max="1000" value="0">
+      <span class="mono small timer" id="tEnd">00:00:00</span>
+      <button id="bRes" title="Show / hide the results panel">Hide results</button>
+      <select id="speed" title="Simulated seconds per real second">
+        <option value="5">5&times;</option><option value="30">30&times;</option>
+        <option value="120" selected>120&times;</option><option value="600">600&times;</option><option value="2400">2400&times;</option>
+      </select>
+    </div>
+    <section class="results" id="results"></section>
+  </main>
+
+  <aside class="side right">
+    <div class="tabs" id="rtabs">
+      <button data-t="node" class="on">Node</button><button data-t="sim">Simulation</button><button data-t="json">JSON</button>
+    </div>
+    <div id="inspector"></div>
+  </aside>
+</div>
+
+<script>
+/*__EMBEDDED_DATA__*/
+"use strict";
+// =============================================================== helpers
+const $ = s => document.querySelector(s);
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === 'class') e.className = v;
+    else if (k === 'style') e.style.cssText = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (v === true) e.setAttribute(k, '');
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat(Infinity)) { if (kid == null || kid === false) continue; e.append(kid.nodeType ? kid : document.createTextNode(String(kid))); }
+  return e;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (v, d = 1) => (v == null || isNaN(v)) ? '-' : Number(v).toLocaleString(undefined, {minimumFractionDigits: d, maximumFractionDigits: d});
+const hms = ms => { const s = Math.floor(ms / 1000); return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map(x => String(x).padStart(2, '0')).join(':'); };
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const KIND_COLOR = {source:'#3d9a78', machine:'#4a86d6', quality_gate:'#2e9aa6', delay:'#8794a6', batcher:'#c58a2b', assembler:'#b9647f', sink:'#6f7b8c'};
+const PART_COLORS = ['#4a86d6','#c58a2b','#3d9a78','#d6694a','#2e9aa6','#9aa64a','#8794a6','#b9647f'];
+const EMB = window.EMBEDDED || null;
+
+// =============================================================== state
+let cfg = {simulation: {duration_seconds: 7200, random_seed: 42, sample_interval: 30}, node_types: {}, nodes: []};
+let types = [];                 // node type schemas from the C++ registry
+let result = null;              // {summary, trace, whatif, replication}
+let sel = null;                 // {kind:'node', id} | {kind:'edge', from, idx}
+let rtab = 'node', restab = 'summary';
+let serverMode = !EMB;
+let dirtySinceRun = false;
+const view = {x: 0, y: 0, k: 1};
+const NW = 156, NH = 64;
+
+// replay
+let rp = null;                  // replay structures
+let playing = true, speed = 120;
+
+// =============================================================== config model
+const RESERVED = new Set(['id','type','label','name','x','y','params','routing','downstream','ui','color']);
+function normalizeCfg(c) {
+  const out = {simulation: Object.assign({}, c.simulation || {}), node_types: c.node_types || {}, nodes: []};
+  if (c.name) out.name = c.name;
+  if (c.description) out.description = c.description;
+  for (const n of c.nodes || []) {
+    const m = {id: n.id, type: n.type, params: Object.assign({}, n.params || {}), downstream: (n.downstream || []).map(d => typeof d === 'string' ? {to: d} : Object.assign({}, d))};
+    if (n.label || n.name) m.label = n.label || n.name;
+    if (n.x != null) { m.x = n.x; m.y = n.y; }
+    if (n.routing) m.routing = n.routing;
+    for (const k of Object.keys(n)) if (!RESERVED.has(k)) m.params[k] = n[k];
+    out.nodes.push(m);
+  }
+  return out;
+}
+function baseTypeOf(type) {
+  for (let i = 0; i < 16; i++) {
+    if (types.find(t => t.name === type)) return type;
+    const t = cfg.node_types[type]; if (!t) return type; type = t.base;
+  }
+  return type;
+}
+function schemaOf(type) { return types.find(t => t.name === baseTypeOf(type)); }
+function templateDefaults(type) {   // params contributed by node_types inheritance
+  const chain = []; let t = type;
+  for (let i = 0; i < 16 && cfg.node_types[t]; i++) { chain.unshift(cfg.node_types[t]); t = cfg.node_types[t].base; }
+  return Object.assign({}, ...chain.map(c => c.params || {}));
+}
+const nodeById = id => cfg.nodes.find(n => n.id === id);
+const kindOf = n => baseTypeOf(n.type);
+
+function autoLayout() {
+  const depth = new Map(); const q = [];
+  cfg.nodes.filter(n => kindOf(n) === 'source').forEach(n => { depth.set(n.id, 0); q.push(n.id); });
+  while (q.length) { const id = q.shift(); for (const e of nodeById(id).downstream) if (!depth.has(e.to) && nodeById(e.to)) { depth.set(e.to, depth.get(id) + 1); q.push(e.to); } }
+  let extra = 0; cfg.nodes.forEach(n => { if (!depth.has(n.id)) depth.set(n.id, extra++); });
+  const layers = {};
+  cfg.nodes.forEach(n => (layers[depth.get(n.id)] = layers[depth.get(n.id)] || []).push(n));
+  for (const [d, list] of Object.entries(layers)) list.forEach((n, i) => { n.x = 100 + d * 250; n.y = 80 + (i - (list.length - 1) / 2) * 150 + 220; });
+}
+function ensureLayout() { if (cfg.nodes.some(n => n.x == null)) autoLayout(); }
+function uniqueId(base) { let i = 1; while (nodeById(base + '_' + i)) i++; return base + '_' + i; }
+
+function markDirty() { dirtySinceRun = !!result && serverMode; $('#stale').style.display = dirtySinceRun ? '' : 'none'; draw(); }
+
+// =============================================================== api
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  let j; try { j = await r.json(); } catch (e) { throw new Error('server returned no JSON'); }
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+function toast(text, info) { const m = $('#msg'); m.textContent = text; m.className = info ? 'info' : ''; m.style.display = text ? 'block' : 'none'; if (info) setTimeout(() => { if (m.textContent === text) m.style.display = 'none'; }, 2500); }
+
+async function run(opts = {}) {
+  if (!serverMode) return toast('This is an offline replay. Start `factory_sim serve` to run simulations.');
+  toast('');
+  $('#bRun').disabled = true; $('#bRun').textContent = 'Running...';
+  try {
+    const data = await api('/api/run', Object.assign({config: cfg, trace: true}, opts));
+    if (opts.whatif || opts.replications) { result = Object.assign(result || {}, {whatif: data.whatif || (result && result.whatif), replication: data.replication || (result && result.replication)}); if (!result.summary) result = data; }
+    else result = data;
+    dirtySinceRun = false; $('#stale').style.display = 'none';
+    if (!opts.whatif && !opts.replications) { buildReplay(); restab = 'summary'; }
+    else restab = opts.whatif ? 'whatif' : 'rep';
+    renderResults(); draw();
+  } catch (e) { toast(e.message); }
+  $('#bRun').disabled = false; $('#bRun').textContent = 'Run simulation';
+}
+
+// =============================================================== replay
+function buildReplay() {
+  const t = result && result.trace; if (!t) { rp = null; return; }
+  const n = t.nodes.length;
+  const idToCfg = t.nodes.map(id => cfg.nodes.findIndex(x => x.id === id));
+  rp = {t, ev: t.events, ri: 0, time: 0, end: t.t_end_ms, nstate: new Int8Array(n), nq: new Int32Array(n), flights: [], cps: [], idToCfg, lastApplied: 0};
+  const stride = 1500;
+  const ns = new Int8Array(n), nq = new Int32Array(n);
+  rp.cps.push({ri: 0, ns: ns.slice(), nq: nq.slice()});
+  for (let i = 0; i < rp.ev.length; i++) {
+    const [, k, a, b] = rp.ev[i];
+    if (k === 0) ns[a] = b; else if (k === 1) nq[a] = b;
+    if ((i + 1) % stride === 0) rp.cps.push({ri: i + 1, ns: ns.slice(), nq: nq.slice()});
+  }
+  rp.stride = stride;
+  $('#scrub').max = rp.end; $('#scrub').value = 0; $('#tEnd').textContent = hms(rp.end);
+  playing = true; $('#bPlay').textContent = 'Pause';
+}
+function seek(ms) {
+  if (!rp) return;
+  ms = Math.max(0, Math.min(rp.end, ms));
+  if (ms < rp.time) {                       // rewind to the nearest checkpoint
+    let cp = rp.cps[0];
+    for (const c of rp.cps) { if (c.ri < rp.ev.length && rp.ev[c.ri] && rp.ev[c.ri][0] <= ms) cp = c; else if (c.ri === 0) cp = c; }
+    rp.nstate.set(cp.ns); rp.nq.set(cp.nq); rp.ri = cp.ri; rp.flights = [];
+  }
+  const ev = rp.ev; let pushed = 0; const now = performance.now();
+  while (rp.ri < ev.length && ev[rp.ri][0] <= ms) {
+    const [, k, a, b, c] = ev[rp.ri++];
+    if (k === 0) rp.nstate[a] = b; else if (k === 1) rp.nq[a] = b;
+    else if (k === 2 && playing && ms - rp.time < 4000 * speed / 60 && pushed++ < 60) rp.flights.push({a, b, c, w0: now});
+  }
+  rp.time = ms;
+}
+function stateOf(cfgIdx) {
+  if (!rp) return null;
+  const ti = rp.idToCfg.indexOf(cfgIdx);
+  return ti < 0 ? null : {state: rp.nstate[ti], q: rp.nq[ti]};
+}
+
+// =============================================================== canvas
+const cv = $('#cv'), ctx = cv.getContext('2d');
+let dpr = 1, cw = 0, ch = 0;
+function resize() {
+  const r = $('#stage').getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cw = r.width; ch = r.height; cv.width = Math.max(1, cw * dpr); cv.height = Math.max(1, ch * dpr);
+}
+let userMoved = false;   // once the user pans/zooms we stop auto-fitting the view
+new ResizeObserver(() => { resize(); if (!userMoved) fitView(); draw(); }).observe($('#stage'));
+const toScreen = (x, y) => ({x: x * view.k + view.x, y: y * view.k + view.y});
+const toWorld = (x, y) => ({x: (x - view.x) / view.k, y: (y - view.y) / view.k});
+function fitView() {
+  if (!cfg.nodes.length) return;
+  ensureLayout();
+  const xs = cfg.nodes.map(n => n.x), ys = cfg.nodes.map(n => n.y);
+  const minX = Math.min(...xs) - NW * 0.75, maxX = Math.max(...xs) + NW * 0.75, minY = Math.min(...ys) - 60, maxY = Math.max(...ys) + 90;
+  view.k = Math.min(1.5, Math.max(0.3, Math.min(cw / (maxX - minX), ch / (maxY - minY))));
+  view.x = (cw - (maxX + minX) * view.k) / 2; view.y = (ch - (maxY + minY) * view.k) / 2;
+}
+function bez(g, u) {
+  const m = 1 - u;
+  return {x: m*m*m*g.p0.x + 3*m*m*u*g.p1.x + 3*m*u*u*g.p2.x + u*u*u*g.p3.x, y: m*m*m*g.p0.y + 3*m*m*u*g.p1.y + 3*m*u*u*g.p2.y + u*u*u*g.p3.y};
+}
+function geom(a, b) {
+  if (b.x - a.x > NW + 20) {
+    const p0 = {x: a.x + NW / 2, y: a.y}, p3 = {x: b.x - NW / 2, y: b.y}, dx = (p3.x - p0.x) * 0.5;
+    return {p0, p1: {x: p0.x + dx, y: p0.y}, p2: {x: p3.x - dx, y: p3.y}, p3};
+  }
+  const dir = b.y < a.y ? -1 : 1, drop = 80 + Math.abs(b.x - a.x) * 0.12;
+  const p0 = {x: a.x, y: a.y + dir * NH / 2}, p3 = {x: b.x, y: b.y + dir * NH / 2};
+  return {p0, p1: {x: a.x + (b.x - a.x) * 0.1, y: p0.y + dir * drop}, p2: {x: b.x - (b.x - a.x) * 0.1, y: p3.y + dir * drop}, p3};
+}
+const STATE_COL = ['--idle', '--busy', '--blocked', '--down'];
+const STATE_NAME = ['Starved', 'Busy', 'Blocked', 'Down'];
+function draw() {
+  if (!cw) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cw, ch);
+  const C = {line: css('--line'), strong: css('--line-strong'), ink: css('--ink'), muted: css('--muted'), accent: css('--accent'),
+             panel: css('--panel'), raised: css('--raised'), rework: css('--rework'), warn: css('--warn'), bad: css('--bad'), good: css('--busy')};
+  const gs = 32 * view.k; ctx.fillStyle = css('--grid');
+  if (gs > 9) for (let x = ((view.x % gs) + gs) % gs; x < cw; x += gs) for (let y = ((view.y % gs) + gs) % gs; y < ch; y += gs) ctx.fillRect(x, y, 1.5, 1.5);
+  ctx.save(); ctx.translate(view.x, view.y); ctx.scale(view.k, view.k);
+  ctx.textBaseline = 'middle';
+  const sum = result && result.summary;
+  const dead = new Set(sum && sum.deadlock ? sum.deadlock.blocked : []);
+  const now = performance.now();
+  const activeEdges = new Set();
+  if (rp) for (const f of rp.flights) if (now - f.w0 < 480) activeEdges.add(rp.t.nodes[f.a] + '>' + rp.t.nodes[f.b]);
+
+  // ---- edges
+  ctx.textAlign = 'center';
+  for (const n of cfg.nodes) {
+    const tot = n.downstream.reduce((acc, e) => acc + (Number(e.weight) || 1), 0);
+    n.downstream.forEach((e, i) => {
+      const m = nodeById(e.to); if (!m || m === n) return;
+      const g = geom(n, m), isSel = sel && sel.kind === 'edge' && sel.from === n.id && sel.idx === i, hot = activeEdges.has(n.id + '>' + m.id);
+      const col = isSel || hot ? C.accent : e.rework ? C.rework : C.strong;
+      ctx.strokeStyle = col; ctx.fillStyle = col;
+      ctx.lineWidth = isSel ? 2.5 : hot ? 2.5 : 1.5;
+      ctx.setLineDash(e.rework ? [8, 5] : e.bypass ? [2, 4] : []);
+      ctx.beginPath(); ctx.moveTo(g.p0.x, g.p0.y); ctx.bezierCurveTo(g.p1.x, g.p1.y, g.p2.x, g.p2.y, g.p3.x, g.p3.y); ctx.stroke();
+      ctx.setLineDash([]);
+      const a = Math.atan2(g.p3.y - g.p2.y, g.p3.x - g.p2.x);
+      ctx.beginPath(); ctx.moveTo(g.p3.x, g.p3.y); ctx.lineTo(g.p3.x - 10 * Math.cos(a - .4), g.p3.y - 10 * Math.sin(a - .4)); ctx.lineTo(g.p3.x - 10 * Math.cos(a + .4), g.p3.y - 10 * Math.sin(a + .4)); ctx.closePath(); ctx.fill();
+      const mid = bez(g, .5);
+      const weighted = n.downstream.length > 1 && kindOf(n) !== 'quality_gate' && !(n.routing && n.routing.rules && n.routing.rules.length);
+      let label = weighted ? Math.round(100 * (Number(e.weight) || 1) / tot) + '%' : '';
+      if (e.rework) label = (label ? label + ' ' : '') + 'rework';
+      if (e.bypass) label = (label ? label + ' ' : '') + 'bypass';
+      if (e.label && !e.rework) label = (label ? label + ' ' : '') + e.label;
+      if (label) {
+        ctx.font = '500 11px Inter, system-ui, sans-serif'; const w = ctx.measureText(label).width + 16;
+        ctx.fillStyle = C.panel; ctx.beginPath(); ctx.roundRect(mid.x - w / 2, mid.y - 10, w, 20, 4); ctx.fill();
+        ctx.strokeStyle = isSel ? C.accent : C.line; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = e.rework ? C.rework : C.muted; ctx.fillText(label, mid.x, mid.y + 1);
+      } else {
+        ctx.fillStyle = C.panel; ctx.strokeStyle = isSel ? C.accent : C.strong; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(mid.x, mid.y, 4.5, 0, 7); ctx.fill(); ctx.stroke();
+      }
+    });
+  }
+
+  // ---- nodes: flat cards, kind strip on the left, utilisation bar along the bottom
+  const bn = sum ? sum.bottleneck : null;
+  const by = {}; if (sum) for (const r of sum.nodes) by[r.id] = r;
+  cfg.nodes.forEach((n, idx) => {
+    const x = n.x - NW / 2, y = n.y - NH / 2, k = kindOf(n), kc = KIND_COLOR[k] || KIND_COLOR.machine;
+    const st = stateOf(idx), r = by[n.id];
+    const isSel = sel && sel.kind === 'node' && sel.id === n.id, isDead = dead.has(n.id);
+    const stateCol = st ? css(STATE_COL[st.state]) : null;
+    if (isSel) { ctx.strokeStyle = C.accent; ctx.globalAlpha = .28; ctx.lineWidth = 7; ctx.beginPath(); ctx.roundRect(x, y, NW, NH, 8); ctx.stroke(); ctx.globalAlpha = 1; }
+    ctx.fillStyle = C.raised; ctx.beginPath(); ctx.roundRect(x, y, NW, NH, 8); ctx.fill();
+    ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, NW, NH, 8); ctx.clip();
+    ctx.fillStyle = kc; ctx.fillRect(x, y, 5, NH);
+    if (r && r.station) {                       // utilisation bar: busy / blocked / down share of the run
+      const bx = x + 5, bw = NW - 5; let off = 0; ctx.fillStyle = C.line; ctx.fillRect(bx, y + NH - 4, bw, 4);
+      for (const [v, c] of [[r.busy_pct, css('--busy')], [r.blocked_pct, css('--blocked')], [r.down_pct, css('--down')]]) { const w = bw * v / 100; ctx.fillStyle = c; ctx.fillRect(bx + off, y + NH - 4, w, 4); off += w; }
+    }
+    ctx.restore();
+    ctx.strokeStyle = isDead ? C.bad : isSel ? C.accent : (stateCol || C.strong); ctx.lineWidth = isDead ? 2.5 : (isSel || stateCol) ? 2 : 1.5;
+    ctx.beginPath(); ctx.roundRect(x, y, NW, NH, 8); ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = C.ink; ctx.font = '600 13px Inter, system-ui, sans-serif'; ctx.fillText(trunc(n.label || n.id, 19), x + 18, y + 22);
+    ctx.font = '11.5px Inter, system-ui, sans-serif';
+    if (st) {
+      ctx.fillStyle = stateCol; ctx.fillRect(x + 18, y + 36, 8, 8);
+      ctx.fillStyle = C.muted; ctx.fillText(STATE_NAME[st.state], x + 32, y + 41);
+    } else { ctx.fillStyle = C.muted; ctx.fillText(k.replace('_', ' '), x + 18, y + 41); }
+    // queue slots under the card
+    if (st && k !== 'source' && k !== 'sink') {
+      const s_ = schemaOf(n.type); const capSpec = n.params.capacity ?? templateDefaults(n.type).capacity ?? (s_ && (s_.params.find(p => p.name === 'capacity') || {}).default);
+      const cap = (typeof capSpec === 'number') ? capSpec : -1;
+      const slots = cap > 0 && cap <= 12 ? cap : Math.min(Math.max(st.q, 4), 12);
+      for (let i = 0; i < slots; i++) {
+        const sx = x + i * 14, sy = y + NH + 8;
+        ctx.strokeStyle = C.strong; ctx.lineWidth = 1; ctx.strokeRect(sx + .5, sy + .5, 10, 10);
+        if (i < st.q) { ctx.fillStyle = (cap > 0 && st.q >= cap) ? css('--blocked') : C.accent; ctx.fillRect(sx + 2.5, sy + 2.5, 6, 6); }
+      }
+      if (st.q > slots) { ctx.fillStyle = C.muted; ctx.font = '11px Inter, system-ui, sans-serif'; ctx.fillText('+' + (st.q - slots), x + slots * 14 + 4, y + NH + 14); }
+    }
+    // tags
+    const tag = (text, col, tx) => { ctx.font = '600 10px Inter, system-ui, sans-serif'; const w = ctx.measureText(text).width + 14; ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(tx, y - 24, w, 18, 3); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(text, tx + 7, y - 14); };
+    if (isDead) tag('DEADLOCK', C.bad, x);
+    else if (n.id === bn && !(sum && sum.deadlock)) tag('BOTTLENECK', C.warn, x);
+    if (isSel && k !== 'sink') { ctx.fillStyle = C.accent; ctx.strokeStyle = C.panel; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(n.x + NW / 2 + 11, n.y, 7, 0, 7); ctx.fill(); ctx.stroke(); }
+  });
+
+  // ---- parts travelling between nodes
+  if (rp) {
+    rp.flights = rp.flights.filter(f => now - f.w0 < 480);
+    for (const f of rp.flights) {
+      const a = nodeById(rp.t.nodes[f.a]), b = nodeById(rp.t.nodes[f.b]); if (!a || !b) continue;
+      const u = (now - f.w0) / 480, e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+      const p = bez(geom(a, b), e);
+      ctx.fillStyle = PART_COLORS[f.c % PART_COLORS.length]; ctx.strokeStyle = C.panel; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7); ctx.fill(); ctx.stroke();
+    }
+  }
+  ctx.restore();
+  if (!cfg.nodes.length) { ctx.fillStyle = C.muted; ctx.font = '14px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Empty pipeline. Add a source from the left panel, then keep adding nodes.', cw / 2, ch / 2); }
+  $('#hint').textContent = rp ? 'Replay ' + hms(rp.time) + ' / ' + hms(rp.end) + (rp.t.truncated ? ' (trace truncated)' : '') : (serverMode ? 'Edit the pipeline, then run it' : 'Offline replay');
+}
+const trunc = (s, n) => s.length > n ? s.slice(0, n - 1) + '...' : s;
+
+// =============================================================== canvas interaction
+let drag = null;
+function hitNode(wx, wy) { for (let i = cfg.nodes.length - 1; i >= 0; i--) { const n = cfg.nodes[i]; if (Math.abs(wx - n.x) <= NW / 2 && Math.abs(wy - n.y) <= NH / 2) return n; } return null; }
+function hitHandle(wx, wy) { if (!sel || sel.kind !== 'node') return null; const n = nodeById(sel.id); if (n && kindOf(n) !== 'sink' && Math.hypot(wx - (n.x + NW / 2 + 9), wy - n.y) < 11) return n; return null; }
+function hitEdge(wx, wy) {
+  for (const n of cfg.nodes) for (let i = 0; i < n.downstream.length; i++) { const m = nodeById(n.downstream[i].to); if (!m || m === n) continue; const mid = bez(geom(n, m), .5); if (Math.hypot(wx - mid.x, wy - mid.y) < 14) return {from: n.id, idx: i}; }
+  return null;
+}
+cv.addEventListener('mousedown', ev => {
+  const r = cv.getBoundingClientRect(), p = toWorld(ev.clientX - r.left, ev.clientY - r.top);
+  const hd = hitHandle(p.x, p.y);
+  if (hd) { drag = {type: 'connect', from: hd, x: p.x, y: p.y}; return; }
+  const n = hitNode(p.x, p.y);
+  if (n) { sel = {kind: 'node', id: n.id}; drag = {type: 'node', n, dx: p.x - n.x, dy: p.y - n.y, moved: false}; renderInspector(); draw(); return; }
+  const e = hitEdge(p.x, p.y);
+  if (e) { sel = {kind: 'edge', from: e.from, idx: e.idx}; renderInspector(); draw(); return; }
+  sel = null; userMoved = true; drag = {type: 'pan', sx: ev.clientX, sy: ev.clientY, vx: view.x, vy: view.y}; cv.style.cursor = 'grabbing'; renderInspector(); draw();
+});
+window.addEventListener('mousemove', ev => {
+  if (!drag) return;
+  const r = cv.getBoundingClientRect(), p = toWorld(ev.clientX - r.left, ev.clientY - r.top);
+  if (drag.type === 'node') { drag.n.x = Math.round((p.x - drag.dx) / 10) * 10; drag.n.y = Math.round((p.y - drag.dy) / 10) * 10; drag.moved = true; draw(); }
+  else if (drag.type === 'pan') { view.x = drag.vx + ev.clientX - drag.sx; view.y = drag.vy + ev.clientY - drag.sy; draw(); }
+  else if (drag.type === 'connect') { drag.x = p.x; drag.y = p.y; draw(); const a = drag.from; const s = toScreen(a.x + NW / 2 + 9, a.y), t = toScreen(p.x, p.y); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.strokeStyle = css('--accent'); ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y); ctx.stroke(); ctx.setLineDash([]); }
+});
+window.addEventListener('mouseup', ev => {
+  if (!drag) return;
+  if (drag.type === 'connect') {
+    const r = cv.getBoundingClientRect(), p = toWorld(ev.clientX - r.left, ev.clientY - r.top), t = hitNode(p.x, p.y);
+    if (t && t !== drag.from && kindOf(t) !== 'source' && !drag.from.downstream.some(e => e.to === t.id)) { drag.from.downstream.push({to: t.id}); markDirty(); renderInspector(); }
+  } else if (drag.type === 'node' && drag.moved) markDirty();
+  drag = null; cv.style.cursor = 'grab'; draw();
+});
+cv.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  const r = cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top, p = toWorld(mx, my);
+  userMoved = true;
+  view.k = Math.max(0.25, Math.min(2.5, view.k * (ev.deltaY < 0 ? 1.1 : 1 / 1.1)));
+  view.x = mx - p.x * view.k; view.y = my - p.y * view.k; draw();
+}, {passive: false});
+window.addEventListener('keydown', ev => {
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { run(); return; }
+  if (typing) return;
+  if ((ev.key === 'Delete' || ev.key === 'Backspace') && sel) { deleteSelection(); ev.preventDefault(); }
+  else if (ev.key === ' ') { togglePlay(); ev.preventDefault(); }
+  else if (ev.key === 'Escape') { sel = null; renderInspector(); draw(); }
+});
+function deleteSelection() {
+  if (!sel) return;
+  if (sel.kind === 'node') { cfg.nodes = cfg.nodes.filter(n => n.id !== sel.id); cfg.nodes.forEach(n => n.downstream = n.downstream.filter(e => e.to !== sel.id)); }
+  else { const n = nodeById(sel.from); if (n) n.downstream.splice(sel.idx, 1); }
+  sel = null; markDirty(); renderInspector();
+}
+
+// =============================================================== palette
+function addNode(type) {
+  const base = baseTypeOf(type); const s = schemaOf(type);
+  const id = uniqueId(type.replace(/[^a-z0-9_]/gi, '_'));
+  const from = sel && sel.kind === 'node' ? nodeById(sel.id) : null;
+  const n = {id, type, params: {}, downstream: []};
+  if (from && kindOf(from) !== 'sink' && base !== 'source') { n.x = from.x + 200; n.y = from.y + (from.downstream.length * 90); from.downstream.push({to: id}); }
+  else { const c = toWorld(cw / 2, ch / 2); n.x = Math.round(c.x / 10) * 10 + (cfg.nodes.length % 5) * 20; n.y = Math.round(c.y / 10) * 10 + (cfg.nodes.length % 5) * 20; }
+  cfg.nodes.push(n); sel = {kind: 'node', id}; rtab = 'node'; syncTabs(); markDirty(); renderInspector();
+}
+function renderPalette() {
+  const p = $('#palette'); p.innerHTML = '';
+  for (const t of types) p.append(h('button', {class: 'pal', title: t.description, onclick: () => addNode(t.name)}, h('i', {style: 'background:' + (KIND_COLOR[t.name] || KIND_COLOR.machine)}), h('span', {}, h('b', {}, t.name.replace('_', ' ')), h('small', {}, t.category))));
+  const tp = $('#templates'); tp.innerHTML = '';
+  const names = Object.keys(cfg.node_types);
+  if (!names.length) tp.textContent = 'None yet. Select a node and use Save as node type.';
+  for (const nm of names) tp.append(h('button', {class: 'pal', title: 'based on ' + cfg.node_types[nm].base, onclick: () => addNode(nm)}, h('i', {style: 'background:' + (KIND_COLOR[baseTypeOf(nm)] || KIND_COLOR.machine)}), h('span', {}, h('b', {}, nm), h('small', {}, 'based on ' + cfg.node_types[nm].base))));
+}
+
+// =============================================================== inspector
+function syncTabs() { document.querySelectorAll('#rtabs button').forEach(b => b.classList.toggle('on', b.dataset.t === rtab)); }
+$('#rtabs').addEventListener('click', e => { if (e.target.dataset.t) { rtab = e.target.dataset.t; syncTabs(); renderInspector(); } });
+
+function numInput(value, placeholder, onset, step) {
+  return h('input', {type: 'number', step: step || 'any', value: value ?? '', placeholder: placeholder ?? '', oninput: e => onset(e.target.value === '' ? undefined : Number(e.target.value))});
+}
+function distEditor(cur, def, set) {
+  const KINDS = {constant: ['value'], exponential: ['mean'], normal: ['mean', 'stddev'], uniform: ['min', 'max'], triangular: ['min', 'mode', 'max'], lognormal: ['mean', 'stddev']};
+  const asObj = v => v == null ? null : typeof v === 'number' ? {dist: 'constant', value: v} : v;
+  const emit = obj => set(obj.dist === 'constant' ? obj.value : obj);
+  const o = asObj(cur) || asObj(def) || {dist: 'constant', value: 1};
+  const isSet = cur != null;
+  if (cur == null && def == null) {   // optional and unset: offer a choice instead of inventing a value
+    return h('select', {onchange: e => { if (e.target.value) { const k = e.target.value; const nobj = {dist: k}; KINDS[k].forEach((f, i) => nobj[f] = i === 0 ? 5 : 1); emit(nobj); renderInspector(); } }},
+      h('option', {value: ''}, '(none)'), Object.keys(KINDS).map(k => h('option', {value: k}, k)));
+  }
+  const wrap = h('div', {});
+  const kindSel = h('select', {onchange: e => { const k = e.target.value; const nobj = {dist: k}; KINDS[k].forEach((f, i) => nobj[f] = i === 0 ? (o.mean || o.value || 10) : (f === 'stddev' ? 1 : (o[f] ?? (o.mean || 10)))); emit(nobj); renderInspector(); }},
+    Object.keys(KINDS).map(k => h('option', {value: k, selected: k === o.dist}, k)));
+  const fields = h('div', {class: 'row2', style: 'margin-top:4px'}, KINDS[o.dist].map(f => h('div', {style: 'flex:1'}, h('div', {class: 'small'}, f), numInput(o[f], '', v => { const nobj = Object.assign({}, o, {dist: o.dist}); nobj[f] = v ?? 0; emit(nobj); }))));
+  wrap.append(kindSel, fields);
+  if (!isSet) wrap.style.opacity = .7;
+  return wrap;
+}
+function mapEditor(cur, def, set) {
+  const obj = cur || def || {};
+  const wrap = h('div', {});
+  const rows = Object.entries(obj);
+  const write = list => { const o = {}; list.forEach(([k, v]) => { if (k) o[k] = v; }); set(o); };
+  rows.forEach(([k, v], i) => wrap.append(h('div', {class: 'row2', style: 'margin-bottom:3px'},
+    h('input', {value: k, style: 'flex:1', onchange: e => { const l = rows.slice(); l[i] = [e.target.value, v]; write(l); }}),
+    h('input', {type: 'number', step: 'any', value: v, style: 'width:70px', oninput: e => { const l = rows.slice(); l[i] = [k, Number(e.target.value)]; write(l); }}),
+    h('button', {onclick: () => { const l = rows.slice(); l.splice(i, 1); write(l); renderInspector(); }}, 'Del'))));
+  wrap.append(h('button', {onclick: () => { const l = rows.slice(); l.push(['type_' + (rows.length + 1), 1]); write(l); renderInspector(); }}, 'Add row'));
+  if (cur == null) wrap.style.opacity = .75;
+  return wrap;
+}
+function paramControl(n, spec) {
+  const eff = Object.assign({}, templateDefaults(n.type));
+  const has = Object.prototype.hasOwnProperty.call(n.params, spec.name);
+  const cur = has ? n.params[spec.name] : eff[spec.name];
+  const defaultShown = eff[spec.name] !== undefined ? eff[spec.name] : spec.default;
+  const set = v => { if (v === undefined) delete n.params[spec.name]; else n.params[spec.name] = v; markDirty(); };
+  const lab = h('label', {title: spec.doc}, spec.name, has ? h('button', {class: 'x', title: 'reset to default', onclick: () => { set(undefined); renderInspector(); }}, 'Reset') : null);
+  let ctl;
+  switch (spec.kind) {
+    case 'number': case 'integer': ctl = numInput(has ? cur : '', defaultShown ?? '', set, spec.kind === 'integer' ? 1 : 'any'); break;
+    case 'boolean': ctl = h('input', {type: 'checkbox', checked: !!cur, onchange: e => set(e.target.checked)}); break;
+    case 'enum': ctl = h('select', {onchange: e => set(e.target.value === '' ? undefined : e.target.value)}, h('option', {value: ''}, '(default: ' + (defaultShown ?? '') + ')'), spec.choices.map(c => h('option', {value: c, selected: has && cur === c}, c))); break;
+    case 'string': ctl = h('input', {value: has ? cur : '', placeholder: defaultShown ?? '', list: 'dl-' + n.id, oninput: e => set(e.target.value === '' ? undefined : e.target.value)}); break;
+    case 'distribution': ctl = distEditor(has ? cur : eff[spec.name], spec.default, set); break;
+    case 'object':
+      if (['mix', 'priority', 'kit'].includes(spec.name)) ctl = mapEditor(has ? cur : eff[spec.name], has ? null : spec.default, set);
+      else ctl = h('textarea', {rows: 3, placeholder: JSON.stringify(spec.default), onchange: e => { try { const t = e.target.value.trim(); set(t ? JSON.parse(t) : undefined); e.target.style.borderColor = ''; } catch (x) { e.target.style.borderColor = 'var(--bad)'; } }}, has ? JSON.stringify(cur, null, 1) : '');
+      break;
+    default: ctl = h('input', {value: cur ?? ''});
+  }
+  return h('div', {class: 'prm'}, lab, ctl, h('div', {class: 'doc'}, spec.doc));
+}
+function renameNode(n, newId) {
+  newId = newId.trim(); if (!newId || newId === n.id || nodeById(newId)) return false;
+  cfg.nodes.forEach(m => m.downstream.forEach(e => { if (e.to === n.id) e.to = newId; }));
+  if (sel && sel.kind === 'node' && sel.id === n.id) sel.id = newId;
+  n.id = newId; return true;
+}
+function renderInspector() {
+  const box = $('#inspector'); box.innerHTML = '';
+  if (rtab === 'sim') return renderSimTab(box);
+  if (rtab === 'json') return renderJsonTab(box);
+  if (!sel) { box.append(h('div', {class: 'small'}, 'Select a node or an edge on the canvas to edit it.'), h('div', {class: 'sect', style: 'margin-top:20px'}, h('b', {}, cfg.name || 'Untitled pipeline'), h('div', {class: 'small'}, cfg.description || ('Nodes: ' + cfg.nodes.length)))); return; }
+  if (sel.kind === 'edge') return renderEdgeInspector(box);
+  const n = nodeById(sel.id); if (!n) { sel = null; return; }
+  const s = schemaOf(n.type);
+  box.append(h('div', {class: 'prm'}, h('label', {}, 'id'), h('input', {value: n.id, onchange: e => { if (renameNode(n, e.target.value)) markDirty(); else e.target.value = n.id; renderInspector(); }})));
+  box.append(h('div', {class: 'prm'}, h('label', {}, 'label'), h('input', {value: n.label || '', placeholder: n.id, oninput: e => { n.label = e.target.value || undefined; draw(); }})));
+  const typeOpts = [...types.map(t => t.name), ...Object.keys(cfg.node_types)];
+  box.append(h('div', {class: 'prm'}, h('label', {}, 'type'), h('select', {onchange: e => { n.type = e.target.value; markDirty(); renderInspector(); }}, typeOpts.map(t => h('option', {value: t, selected: t === n.type}, t)))));
+  if (s) box.append(h('div', {class: 'small', style: 'margin:-6px 0 20px'}, s.description));
+  box.append(h('datalist', {id: 'dl-' + n.id}, n.downstream.map(e => h('option', {value: e.to}))));
+  if (s) s.params.forEach(p => box.append(paramControl(n, p)));
+  // routing
+  const rt = n.routing || {};
+  box.append(h('div', {class: 'sect'}, h('b', {}, 'Routing'),
+    h('div', {class: 'small'}, 'How this node picks among its downstream edges.'),
+    h('div', {class: 'prm', style: 'margin-top:6px'}, h('label', {}, 'policy'), h('select', {onchange: e => { n.routing = Object.assign({}, n.routing, {policy: e.target.value}); if (e.target.value === 'probabilistic' && !(n.routing.rules || []).length) delete n.routing; markDirty(); }},
+      ['probabilistic', 'round_robin', 'shortest_queue', 'first_available'].map(p => h('option', {value: p, selected: (rt.policy || 'probabilistic') === p}, p)))),
+    h('details', {open: !!(rt.rules && rt.rules.length)}, h('summary', {}, 'rules (first match wins)'),
+      h('textarea', {rows: 4, placeholder: '[{"match":{"type":"A"},"to":"line_a"},{"to":"line_b"}]', onchange: e => { try { const t = e.target.value.trim(); n.routing = Object.assign({}, n.routing || {}); if (t) n.routing.rules = JSON.parse(t); else delete n.routing.rules; if (!Object.keys(n.routing).length) delete n.routing; e.target.style.borderColor = ''; markDirty(); } catch (x) { e.target.style.borderColor = 'var(--bad)'; } }}, rt.rules ? JSON.stringify(rt.rules, null, 1) : ''))));
+  // connections
+  const ds = h('div', {class: 'sect'}, h('b', {style: 'margin-bottom:12px'}, 'Connections'));
+  n.downstream.forEach((e, i) => ds.append(h('div', {class: 'edge'},
+    h('div', {class: 'row2'}, h('select', {style: 'flex:1', onchange: ev => { e.to = ev.target.value; markDirty(); }}, cfg.nodes.filter(m => m !== n && kindOf(m) !== 'source').map(m => h('option', {value: m.id, selected: m.id === e.to}, m.id))),
+      numInput(e.weight ?? '', 'weight 1', v => { if (v === undefined) delete e.weight; else e.weight = v; markDirty(); }, 'any'),
+      h('button', {onclick: () => { n.downstream.splice(i, 1); markDirty(); renderInspector(); }}, 'Remove')),
+    h('label', {title: 'increments the part\'s rework counter'}, h('input', {type: 'checkbox', checked: !!e.rework, onchange: ev => { e.rework = ev.target.checked || undefined; if (!e.rework) delete e.rework; markDirty(); }}), 'rework'),
+    ' ', h('label', {title: 'target accepts the part even when its buffer is full (breaks deadlock loops)'}, h('input', {type: 'checkbox', checked: !!e.bypass, onchange: ev => { e.bypass = ev.target.checked || undefined; if (!e.bypass) delete e.bypass; markDirty(); }}), 'bypass lane'))));
+  ds.append(h('button', {onclick: () => { const c = cfg.nodes.find(m => m !== n && kindOf(m) !== 'source' && !n.downstream.some(e => e.to === m.id)); if (c) { n.downstream.push({to: c.id}); markDirty(); renderInspector(); } }}, 'Add connection'));
+  box.append(ds);
+  box.append(h('div', {class: 'actions'},
+    h('button', {onclick: () => { const nm = prompt('Name for the new node type (e.g. "cnc_lathe"):', n.type + '_custom'); if (!nm) return; if (types.find(t => t.name === nm)) return toast('That name is a built-in type'); cfg.node_types[nm] = {base: n.type, params: JSON.parse(JSON.stringify(n.params))}; n.type = nm; n.params = {}; renderPalette(); markDirty(); renderInspector(); toast('Saved node type "' + nm + '". It now appears under My node types.', true); }}, 'Save as node type'),
+    h('button', {class: 'danger', onclick: deleteSelection}, 'Delete node')));
+}
+function renderEdgeInspector(box) {
+  const n = nodeById(sel.from), e = n && n.downstream[sel.idx]; if (!e) { sel = null; return; }
+  box.append(h('div', {class: 'sect'}, h('b', {}, n.id + ' to ' + e.to),
+    h('div', {class: 'prm', style: 'margin-top:12px'}, h('label', {}, 'weight (relative share)'), numInput(e.weight ?? '', '1', v => { if (v === undefined) delete e.weight; else e.weight = v; markDirty(); })),
+    h('div', {class: 'prm'}, h('label', {}, 'label'), h('input', {value: e.label || '', oninput: ev => { e.label = ev.target.value || undefined; draw(); }})),
+    h('label', {class: 'small'}, h('input', {type: 'checkbox', checked: !!e.rework, onchange: ev => { e.rework = ev.target.checked || undefined; markDirty(); }}), ' rework edge (counts a rework)'), h('br'),
+    h('label', {class: 'small'}, h('input', {type: 'checkbox', checked: !!e.bypass, onchange: ev => { e.bypass = ev.target.checked || undefined; markDirty(); }}), ' bypass lane (ignores target capacity)'),
+    h('div', {style: 'margin-top:14px'}, h('button', {class: 'danger', onclick: deleteSelection}, 'Delete connection'))));
+}
+function renderSimTab(box) {
+  const s = cfg.simulation;
+  const field = (key, label, def, step) => h('div', {class: 'prm'}, h('label', {}, label), numInput(s[key] ?? '', def, v => { if (v === undefined) delete s[key]; else s[key] = v; markDirty(); }, step));
+  box.append(field('duration_seconds', 'duration (simulated seconds)', 3600), field('random_seed', 'random seed', 42, 1), field('warmup_seconds', 'warm-up (excluded from statistics)', 0),
+    field('sample_interval', 'telemetry sample interval (s, 0 = off)', 60),
+    h('label', {class: 'small'}, h('input', {type: 'checkbox', checked: s.stop_on_deadlock !== false, onchange: e => { s.stop_on_deadlock = e.target.checked; markDirty(); }}), ' stop the run at the first deadlock'),
+    h('div', {class: 'prm', style: 'margin-top:10px'}, h('label', {}, 'name'), h('input', {value: cfg.name || '', oninput: e => { cfg.name = e.target.value || undefined; }})));
+}
+function renderJsonTab(box) {
+  const ta = h('textarea', {rows: 28, spellcheck: 'false'}, JSON.stringify(cfg, null, 2));
+  const err = h('div', {class: 'small', style: 'color:var(--bad);min-height:18px'});
+  box.append(ta, err, h('button', {onclick: async () => { try { await loadConfig(JSON.parse(ta.value), true); err.textContent = ''; toast('Applied', true); } catch (e) { err.textContent = e.message; } }}, 'Apply JSON'),
+    h('div', {class: 'small', style: 'margin-top:6px'}, 'This is the exact file format used by the CLI. Save it and run: factory_sim run pipeline.json'));
+}
+
+// =============================================================== results panel
+function stackBar(r) {
+  const seg = (v, c) => h('i', {style: 'width:' + v + '%;background:var(' + c + ')', title: fmt(v, 1) + '%'});
+  return h('div', {class: 'bar'}, seg(r.busy_pct, '--busy'), seg(r.blocked_pct, '--blocked'), seg(r.down_pct, '--down'), seg(r.idle_pct, '--idle'));
+}
+function renderResults() {
+  const box = $('#results'); box.innerHTML = '';
+  if (!result || !result.summary) { box.append(h('div', {class: 'small'}, 'Run the simulation to see throughput, bottlenecks and an animated replay.')); return; }
+  const tabs = h('div', {class: 'tabs'}, [['summary', 'Summary'], ['nodes', 'Nodes'], ['chart', 'WIP over time'], ['whatif', 'What-if'], ['rep', 'Replications']].map(([k, l]) => h('button', {class: restab === k ? 'on' : '', onclick: () => { restab = k; renderResults(); }}, l)));
+  box.append(tabs);
+  const s = result.summary;
+  if (restab === 'summary') {
+    box.append(h('div', {class: 'kpis'},
+      kpi(fmt(s.uph, 1), 'units / hour'), kpi(s.completed, 'completed'), kpi(s.scrapped, 'scrapped'), kpi(fmt(s.lost_pct, 1) + '%', 'arrivals lost'),
+      kpi(fmt(s.avg_wip, 1), 'avg WIP'), kpi(fmt(s.cycle_time_s, 0) + ' s', 'cycle time'), kpi(fmt(s.little.gap_pct, 1) + '%', "Little's Law gap"), kpi(s.conservation_ok ? 'Pass' : 'Fail', 'unit conservation')));
+    box.append(h('div', {class: 'banner ' + (s.deadlock ? 'bad' : s.demand_limited ? '' : 'warn')}, h('div', {class: 'bt'}, s.deadlock ? 'Deadlock' : s.demand_limited ? 'Diagnosis' : 'Bottleneck'), s.diagnosis || 'No diagnosis.'));
+    (s.warnings || []).forEach(w => box.append(h('div', {class: 'banner warn'}, h('div', {class: 'bt'}, 'Warning'), w)));
+    box.append(h('div', {class: 'note'}, "Little's Law: L = " + fmt(s.little.L, 2) + " units, λ·W = " + fmt(s.little.lambda * s.little.W, 2) + ". The small gap comes from units still in flight at the cut-off."));
+  } else if (restab === 'nodes') {
+    const t = h('table', {}, h('tr', {}, ['node', 'kind', 'state mix (busy / blocked / down / starved)', 'busy%', 'blocked%', 'down%', 'avg Q', 'max Q', 'wait s', 'units', 'index'].map(c => h('th', {}, c))));
+    for (const r of s.nodes) t.append(h('tr', {class: 'row', onclick: () => { sel = {kind: 'node', id: r.id}; rtab = 'node'; syncTabs(); renderInspector(); draw(); }},
+      h('td', {}, r.id, r.id === s.bottleneck && !s.deadlock ? h('span', {class: 'tag'}, 'Bottleneck') : null), h('td', {}, r.kind),
+      h('td', {}, stackBar(r)), h('td', {}, fmt(r.busy_pct, 1)), h('td', {}, fmt(r.blocked_pct, 1)), h('td', {}, fmt(r.down_pct, 1)),
+      h('td', {}, fmt(r.avg_occupancy, 2)), h('td', {}, r.max_occupancy), h('td', {}, fmt(r.avg_wait_s, 1)), h('td', {}, r.processed_units), h('td', {}, r.station ? fmt(r.bottleneck_index, 0) : '')));
+    box.append(t);
+  } else if (restab === 'chart') {
+    const c = h('canvas', {width: 900, height: 200, style: 'width:100%;height:210px;background:var(--raised);border:1px solid var(--line);border-radius:8px'}); box.append(c);
+    box.append(h('div', {class: 'note', style: 'margin-top:10px'}, 'Blue: units in the system (WIP). Green: cumulative completed units / 10. The vertical line follows the replay.'));
+    drawChart(c);
+  } else if (restab === 'whatif') {
+    if (!result.whatif) {
+      box.append(h('div', {class: 'note'}, 'Tries +2 buffer slots, 10% faster processing and 20% shorter repairs at the three most-constrained stations, over several 8-hour runs with common random numbers, and reports the measured throughput change.'),
+        h('button', {class: 'primary', disabled: !serverMode, onclick: () => run({whatif: true, trace: false})}, 'Run what-if analysis'));
+    } else {
+      const w = result.whatif, max = Math.max(1, ...w.results.map(r => Math.abs(r.delta)));
+      box.append(h('div', {class: 'banner'}, h('div', {class: 'bt'}, 'Recommendation'), w.recommendation), h('div', {class: 'note'}, 'Baseline: ' + fmt(w.base_uph, 1) + ' units/hour (' + w.reps + ' seeds)'));
+      const t = h('table', {}, h('tr', {}, ['node', 'change', 'units/h', 'Δ', 'Δ%', ''].map(c => h('th', {}, c))));
+      w.results.forEach(r => t.append(h('tr', {}, h('td', {}, r.node), h('td', {}, r.change), h('td', {}, fmt(r.uph, 1)), h('td', {style: 'color:var(' + (r.delta >= 0 ? '--good' : '--bad') + ')'}, (r.delta >= 0 ? '+' : '') + fmt(r.delta, 1)), h('td', {}, fmt(r.delta_pct, 1) + '%'), h('td', {style: 'width:30%'}, h('div', {class: 'deltabar', style: 'width:' + Math.max(1, 100 * Math.abs(r.delta) / max) + '%;background:var(' + (r.delta >= 0 ? '--good' : '--bad') + ')'})))));
+      box.append(t);
+    }
+  } else if (restab === 'rep') {
+    if (!result.replication) box.append(h('div', {class: 'note'}, 'Runs 20 independent replications (different seeds, in parallel) and reports mean ± 95% confidence interval.'), h('button', {class: 'primary', disabled: !serverMode, onclick: () => run({replications: 20, trace: false})}, 'Run 20 replications'));
+    else { const r = result.replication, row = (n, st, u) => h('tr', {}, h('td', {}, n), h('td', {}, fmt(st.mean, 2)), h('td', {}, '± ' + fmt(st.ci95, 2)), h('td', {}, fmt(st.sd, 2)), h('td', {}, u));
+      box.append(h('div', {class: 'note'}, r.n + ' replications, 95% confidence' + (r.deadlocks ? ' (' + r.deadlocks + ' deadlocked)' : '')),
+        h('table', {}, h('tr', {}, ['metric', 'mean', '95% CI', 'std dev', ''].map(c => h('th', {}, c))), row('throughput', r.uph, 'units/h'), row('avg WIP', r.avg_wip, 'units'), row('cycle time', r.cycle_time_s, 's'), row('arrivals lost', r.lost_pct, '%'))); }
+  }
+}
+const kpi = (v, l) => h('div', {class: 'kpi'}, h('b', {}, v), h('span', {}, l));
+function drawChart(c) {
+  const g = c.getContext('2d'), W = c.width, H = c.height, s = result.summary.samples; if (!s.length) { g.fillStyle = css('--muted'); g.fillText('no samples (sample interval is 0)', 20, 30); return; }
+  const tmax = s[s.length - 1][0], wmax = Math.max(1, ...s.map(p => p[1])), cmax = Math.max(1, ...s.map(p => p[2] / 10)), ymax = Math.max(wmax, cmax) * 1.1, pad = 28;
+  g.clearRect(0, 0, W, H); g.strokeStyle = css('--line'); g.fillStyle = css('--muted'); g.font = '11px system-ui'; g.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) { const y = pad / 2 + (H - pad) * i / 4; g.beginPath(); g.moveTo(pad, y); g.lineTo(W - 6, y); g.stroke(); g.fillText(fmt(ymax * (1 - i / 4), 0), 2, y + 3); }
+  const X = t => pad + (W - pad - 8) * t / tmax, Y = v => pad / 2 + (H - pad) * (1 - v / ymax);
+  const line = (idx, div, col) => { g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); s.forEach((p, i) => { const x = X(p[0]), y = Y(p[idx] / div); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); };
+  line(2, 10, css('--good')); line(1, 1, css('--accent'));
+  if (rp) { const x = X(rp.time / 1000); g.strokeStyle = css('--warn'); g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, 4); g.lineTo(x, H - pad / 2); g.stroke(); }
+  g.fillStyle = css('--muted'); g.fillText(hms(tmax * 1000), W - 60, H - 4); g.fillText('0', pad, H - 4);
+}
+
+// =============================================================== loading / saving
+async function loadConfig(c, keepResult) {
+  if (c.stations && serverMode) c = await api('/api/normalize', c);
+  cfg = normalizeCfg(c); ensureLayout(); sel = null;
+  if (!keepResult) { result = null; rp = null; $('#stale').style.display = 'none'; }
+  renderPalette(); renderInspector(); renderResults(); userMoved = false; fitView(); draw(); markDirty();
+}
+function download(name, text, mime) { const a = h('a', {href: URL.createObjectURL(new Blob([text], {type: mime || 'application/json'})), download: name}); document.body.append(a); a.click(); a.remove(); }
+
+$('#bRun').onclick = () => run();
+$('#bWhatIf').onclick = () => { restab = 'whatif'; if (result && result.whatif) renderResults(); else if (result) renderResults(); else run().then(() => { restab = 'whatif'; renderResults(); }); };
+$('#bRep').onclick = () => { restab = 'rep'; if (result) renderResults(); else run().then(() => { restab = 'rep'; renderResults(); }); };
+$('#bNew').onclick = () => loadConfig({simulation: {duration_seconds: 3600, random_seed: 42, sample_interval: 30}, nodes: []});
+$('#bLayout').onclick = () => { autoLayout(); userMoved = false; fitView(); draw(); };
+$('#bSave').onclick = () => download((cfg.name || 'pipeline').replace(/[^a-z0-9]+/gi, '_').toLowerCase() + '.json', JSON.stringify(cfg, null, 2));
+$('#bLoad').onclick = () => $('#file').click();
+$('#file').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { await loadConfig(JSON.parse(await f.text())); } catch (x) { toast('Could not load: ' + x.message); } e.target.value = ''; };
+$('#bAudit').onclick = async () => {
+  if (!serverMode) return toast('Start `factory_sim serve` to generate audit reports.');
+  if (!cfg.nodes.length) return toast('Add some nodes first.');
+  const btn = $('#bAudit'); btn.disabled = true; btn.textContent = 'Auditing...'; toast('');
+  try {
+    const r = await fetch('/api/audit', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({config: cfg, reps: 10})});
+    if (!r.ok) throw new Error((await r.json()).error);
+    const blob = await r.blob(), score = r.headers.get('X-Audit-Score');
+    const a = h('a', {href: URL.createObjectURL(blob), download: (cfg.name || 'pipeline').replace(/[^a-z0-9]+/gi, '_').toLowerCase() + '_audit.pdf'});
+    document.body.append(a); a.click(); a.remove();
+    toast('Audit report downloaded' + (score ? ' (health score ' + score + '/100)' : ''), true);
+  } catch (e) { toast(e.message); }
+  btn.disabled = false; btn.textContent = 'Audit report (PDF)';
+};
+$('#bExport').onclick = async () => {
+  if (!serverMode) return toast('Already an offline export.');
+  try { const r = await fetch('/api/export', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({config: cfg, trace: true})}); if (!r.ok) throw new Error((await r.json()).error); download('factory_replay.html', await r.text(), 'text/html'); }
+  catch (e) { toast(e.message); }
+};
+$('#examples').onchange = async e => { const ex = window._examples && window._examples.find(x => x.name === e.target.value); if (ex) { await loadConfig(ex.config); run(); } };
+
+function togglePlay() { if (!rp) return; playing = !playing; if (playing && rp.time >= rp.end) { rp.time = 0; seek(0); } $('#bPlay').textContent = playing ? 'Pause' : 'Play'; }
+$('#bPlay').onclick = togglePlay;
+$('#bRes').onclick = () => { const r = $('#results'); r.classList.toggle('hide'); setTimeout(() => { resize(); if (!userMoved) fitView(); draw(); }, 60); $('#bRes').textContent = r.classList.contains('hide') ? 'Show results' : 'Hide results'; };
+$('#speed').onchange = e => speed = Number(e.target.value);
+$('#scrub').oninput = e => { if (rp) { seek(Number(e.target.value)); } };
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (rp && playing) {
+    seek(rp.time + dt * speed * 1000);
+    if (rp.time >= rp.end) { playing = false; $('#bPlay').textContent = 'Play'; }
+  }
+  if (rp) { $('#scrub').value = rp.time; $('#tNow').textContent = hms(rp.time); }
+  const needAnim = rp && (playing || rp.flights.length) || (result && result.summary && result.summary.deadlock);
+  if (needAnim || drag) draw(); else if (rp && !playing) draw();
+  if (restab === 'chart' && result && playing && now % 3 < 1.5) { const c = document.querySelector('#results canvas'); if (c) drawChart(c); }
+  requestAnimationFrame(frame);
+}
+
+// =============================================================== boot
+async function boot() {
+  resize();
+  if (EMB) {
+    types = EMB.types || []; cfg = normalizeCfg(EMB.config); ensureLayout();
+    result = {summary: EMB.summary, trace: EMB.trace, whatif: EMB.whatif, replication: EMB.replication};
+    $('#examples').style.display = 'none'; ['bRun', 'bWhatIf', 'bRep', 'bExport', 'bNew', 'bAudit'].forEach(i => $('#' + i).style.display = 'none');
+    renderPalette(); fitView(); buildReplay(); renderResults(); renderInspector(); draw();
+  } else {
+    try {
+      types = await api('/api/types');
+      const ex = await api('/api/examples'); window._examples = ex;
+      const sel_ = $('#examples'); sel_.append(h('option', {value: ''}, 'Load example')); ex.forEach(x => sel_.append(h('option', {value: x.name}, (x.config.name || x.name))));
+      const first = ex.find(x => x.name === 'sample_factory') || ex[0];
+      if (first) { await loadConfig(first.config); run(); } else { renderPalette(); renderInspector(); renderResults(); }
+    } catch (e) { toast('Cannot reach the factory_sim server: ' + e.message); }
+  }
+  requestAnimationFrame(frame);
+}
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "Electronics: SMT circuit-board line",
+  "description": "Paste printer, chip shooter and fine-pitch placer feed a 4-minute reflow oven, then AOI inspection (a custom quality_gate node) sends bad boards to a rework bench or scrap. The chip shooter is the slowest and fails often, so it should show up as the constraint. Try the What-if tab on it.",
+  "simulation": {"duration_seconds": 28800, "random_seed": 12, "warmup_seconds": 1800, "sample_interval": 120},
+  "nodes": [
+    {"id": "boards", "type": "source", "label": "Bare boards", "x": 100, "y": 260, "interarrival": {"dist": "exponential", "mean": 36}, "on_blocked": "wait", "downstream": ["printer"]},
+    {"id": "printer", "type": "machine", "label": "Paste printer", "x": 370, "y": 260, "capacity": 3, "process": {"dist": "normal", "mean": 25, "stddev": 3}, "mtbf": 5400, "mttr": 240, "downstream": ["pnp_chip"]},
+    {"id": "pnp_chip", "type": "machine", "label": "Chip shooter", "x": 640, "y": 260, "capacity": 3, "process": {"dist": "normal", "mean": 38, "stddev": 4}, "mtbf": 2400, "mttr": 300, "on_failure": "restart", "downstream": ["pnp_fine"]},
+    {"id": "pnp_fine", "type": "machine", "label": "Fine-pitch placer", "x": 910, "y": 260, "capacity": 3, "process": {"dist": "normal", "mean": 30, "stddev": 3}, "mtbf": 7200, "mttr": 420, "downstream": ["reflow"]},
+    {"id": "reflow", "type": "delay", "label": "Reflow oven", "x": 1180, "y": 260, "transit": 240, "capacity": 8, "downstream": ["aoi"]},
+    {"id": "aoi", "type": "quality_gate", "label": "AOI inspection", "x": 1450, "y": 260, "capacity": 4, "process": {"dist": "normal", "mean": 12, "stddev": 2}, "threshold": 0.06, "max_reworks": 1, "pass_to": "test", "rework_to": "rework_bench", "scrap_to": "scrap", "downstream": ["test", "rework_bench", "scrap"]},
+    {"id": "rework_bench", "type": "machine", "label": "Rework bench", "x": 1450, "y": 500, "capacity": 3, "process": {"dist": "normal", "mean": 180, "stddev": 40}, "downstream": [{"to": "aoi", "bypass": true, "label": "re-inspect"}]},
+    {"id": "test", "type": "machine", "label": "In-circuit test", "x": 1720, "y": 260, "capacity": 3, "process": {"dist": "normal", "mean": 20, "stddev": 3}, "downstream": ["shipped"]},
+    {"id": "shipped", "type": "sink", "label": "Good boards", "x": 1990, "y": 260},
+    {"id": "scrap", "type": "sink", "label": "Scrapped", "x": 1720, "y": 500, "counts_as": "scrapped"}
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Transport: airport security checkpoint",
+  "description": "Priority passengers use a fast-track lane; everyone else queues for one of two ID desks, a tray belt, then the shortest of three X-ray lanes (which break down now and then). 8% are pulled aside for a secondary search. Passengers wait at the door when the checkpoint is full, so source blocking shows how congested the checkpoint is.",
+  "simulation": {"duration_seconds": 14400, "random_seed": 5, "warmup_seconds": 900, "sample_interval": 60},
+  "nodes": [
+    {"id": "pax", "type": "source", "label": "Passengers", "x": 100, "y": 335, "interarrival": {"dist": "exponential", "mean": 7}, "mix": {"standard": 0.8, "priority": 0.2}, "on_blocked": "wait", "routing": {"policy": "shortest_queue", "rules": [{"match": {"type": "priority"}, "to": "fast_track"}, {"to": ["id_1", "id_2"]}]}, "downstream": ["fast_track", "id_1", "id_2"]},
+    {"id": "fast_track", "type": "machine", "label": "Fast track", "x": 370, "y": 110, "capacity": 5, "process": {"dist": "normal", "mean": 14, "stddev": 4}, "downstream": ["hall"]},
+    {"id": "id_1", "type": "machine", "label": "ID check 1", "x": 370, "y": 410, "capacity": 6, "process": {"dist": "normal", "mean": 15, "stddev": 4}, "downstream": ["belt"]},
+    {"id": "id_2", "type": "machine", "label": "ID check 2", "x": 370, "y": 590, "capacity": 6, "process": {"dist": "normal", "mean": 15, "stddev": 4}, "downstream": ["belt"]},
+    {"id": "belt", "type": "delay", "label": "Tray belt", "x": 640, "y": 500, "transit": {"dist": "uniform", "min": 8, "max": 14}, "capacity": 14, "routing": {"policy": "shortest_queue"}, "downstream": ["xray_1", "xray_2", "xray_3"]},
+    {"id": "xray_1", "type": "machine", "label": "X-ray lane 1", "x": 910, "y": 320, "capacity": 4, "process": {"dist": "normal", "mean": 24, "stddev": 6}, "mtbf": 5400, "mttr": 300, "downstream": [{"to": "secondary", "weight": 0.08}, {"to": "hall", "weight": 0.92}]},
+    {"id": "xray_2", "type": "machine", "label": "X-ray lane 2", "x": 910, "y": 499, "capacity": 4, "process": {"dist": "normal", "mean": 24, "stddev": 6}, "mtbf": 5400, "mttr": 300, "downstream": [{"to": "secondary", "weight": 0.08}, {"to": "hall", "weight": 0.92}]},
+    {"id": "xray_3", "type": "machine", "label": "X-ray lane 3", "x": 910, "y": 680, "capacity": 4, "process": {"dist": "normal", "mean": 24, "stddev": 6}, "mtbf": 5400, "mttr": 300, "downstream": [{"to": "secondary", "weight": 0.08}, {"to": "hall", "weight": 0.92}]},
+    {"id": "secondary", "type": "machine", "label": "Secondary search", "x": 1180, "y": 770, "capacity": 4, "process": {"dist": "normal", "mean": 70, "stddev": 20}, "downstream": ["hall"]},
+    {"id": "hall", "type": "sink", "label": "Departures hall", "x": 1450, "y": 335}
+  ]
+}

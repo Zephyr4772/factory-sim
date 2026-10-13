@@ -1,0 +1,17 @@
+{
+  "name": "Software: CI/CD pipeline",
+  "description": "Commits (features, hotfixes, docs changes) are built on three runners that sometimes crash, then unit-tested (2% flaky failures retry the build). Docs skip integration and go straight to deploy; everything else runs in one of three shared integration environments. Hotfixes jump every queue. The nodes here are build servers, but the maths is the same as a factory.",
+  "simulation": {"duration_seconds": 28800, "random_seed": 61, "warmup_seconds": 1800, "sample_interval": 120},
+  "nodes": [
+    {"id": "commits", "type": "source", "label": "Commits", "x": 100, "y": 410, "interarrival": {"dist": "exponential", "mean": 150}, "mix": {"feature": 0.7, "hotfix": 0.1, "docs": 0.2}, "priority": {"hotfix": 3, "feature": 1, "docs": 0}, "routing": {"policy": "shortest_queue"}, "downstream": ["runner_1", "runner_2", "runner_3"]},
+    {"id": "runner_1", "type": "machine", "label": "Build runner 1", "x": 370, "y": 260, "capacity": 4, "discipline": "priority", "process": {"dist": "normal", "mean": 240, "stddev": 60}, "mtbf": 7200, "mttr": 300, "on_failure": "restart", "downstream": ["unit_tests"]},
+    {"id": "runner_2", "type": "machine", "label": "Build runner 2", "x": 370, "y": 410, "capacity": 4, "discipline": "priority", "process": {"dist": "normal", "mean": 240, "stddev": 60}, "mtbf": 7200, "mttr": 300, "on_failure": "restart", "downstream": ["unit_tests"]},
+    {"id": "runner_3", "type": "machine", "label": "Build runner 3", "x": 370, "y": 560, "capacity": 4, "discipline": "priority", "process": {"dist": "normal", "mean": 240, "stddev": 60}, "mtbf": 7200, "mttr": 300, "on_failure": "restart", "downstream": ["unit_tests"]},
+    {"id": "unit_tests", "type": "machine", "label": "Unit tests", "x": 640, "y": 410, "capacity": 6, "discipline": "priority", "process": {"dist": "normal", "mean": 90, "stddev": 20}, "routing": {"policy": "probabilistic", "rules": [{"match": {"type": "docs"}, "to": "deploy"}, {"to": ["int_env_1", "int_env_2", "int_env_3", "runner_1", "runner_2", "runner_3"]}]}, "downstream": [{"to": "deploy", "weight": 1.0}, {"to": "int_env_1", "weight": 0.3133}, {"to": "int_env_2", "weight": 0.3133}, {"to": "int_env_3", "weight": 0.3133}, {"to": "runner_1", "weight": 0.02, "rework": true, "bypass": true, "label": "flaky retry"}, {"to": "runner_2", "weight": 0.02, "rework": true, "bypass": true, "label": "flaky retry"}, {"to": "runner_3", "weight": 0.02, "rework": true, "bypass": true, "label": "flaky retry"}]},
+    {"id": "int_env_1", "type": "machine", "label": "Integration env 1", "x": 910, "y": 260, "capacity": 3, "discipline": "priority", "process": {"dist": "normal", "mean": 420, "stddev": 90}, "mtbf": 14400, "mttr": 900, "downstream": ["deploy"]},
+    {"id": "int_env_2", "type": "machine", "label": "Integration env 2", "x": 910, "y": 410, "capacity": 3, "discipline": "priority", "process": {"dist": "normal", "mean": 420, "stddev": 90}, "mtbf": 14400, "mttr": 900, "downstream": ["deploy"]},
+    {"id": "int_env_3", "type": "machine", "label": "Integration env 3", "x": 910, "y": 560, "capacity": 3, "discipline": "priority", "process": {"dist": "normal", "mean": 420, "stddev": 90}, "mtbf": 14400, "mttr": 900, "downstream": ["deploy"]},
+    {"id": "deploy", "type": "machine", "label": "Deploy", "x": 1180, "y": 410, "capacity": 4, "process": {"dist": "normal", "mean": 90, "stddev": 20}, "downstream": ["prod"]},
+    {"id": "prod", "type": "sink", "label": "In production", "x": 1450, "y": 410}
+  ]
+}

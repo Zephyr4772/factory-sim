@@ -1,0 +1,17 @@
+{
+  "name": "Services: customer support call centre",
+  "description": "Calls pass an IVR menu, then go to the shortest of five agent queues. Callers hang up when an agent queue is full (lost calls are abandoned calls). About 22% escalate to two specialists, and 7% of those come back to an agent as callbacks. Raise the call rate to see abandonment climb.",
+  "simulation": {"duration_seconds": 28800, "random_seed": 33, "warmup_seconds": 1800, "sample_interval": 120},
+  "nodes": [
+    {"id": "calls", "type": "source", "label": "Incoming calls", "x": 100, "y": 410, "interarrival": {"dist": "exponential", "mean": 65}, "downstream": ["ivr"]},
+    {"id": "ivr", "type": "delay", "label": "IVR menu", "x": 370, "y": 410, "transit": {"dist": "uniform", "min": 20, "max": 40}, "routing": {"policy": "shortest_queue"}, "downstream": ["agent_1", "agent_2", "agent_3", "agent_4", "agent_5"]},
+    {"id": "agent_1", "type": "machine", "label": "Agent 1", "x": 640, "y": 140, "capacity": 3, "on_full": "drop", "process": {"dist": "normal", "mean": 300, "stddev": 90}, "downstream": [{"to": "resolved", "weight": 0.78}, {"to": "specialist_1", "weight": 0.11}, {"to": "specialist_2", "weight": 0.11}]},
+    {"id": "agent_2", "type": "machine", "label": "Agent 2", "x": 640, "y": 290, "capacity": 3, "on_full": "drop", "process": {"dist": "normal", "mean": 300, "stddev": 90}, "downstream": [{"to": "resolved", "weight": 0.78}, {"to": "specialist_1", "weight": 0.11}, {"to": "specialist_2", "weight": 0.11}]},
+    {"id": "agent_3", "type": "machine", "label": "Agent 3", "x": 640, "y": 440, "capacity": 3, "on_full": "drop", "process": {"dist": "normal", "mean": 300, "stddev": 90}, "downstream": [{"to": "resolved", "weight": 0.78}, {"to": "specialist_1", "weight": 0.11}, {"to": "specialist_2", "weight": 0.11}]},
+    {"id": "agent_4", "type": "machine", "label": "Agent 4", "x": 640, "y": 590, "capacity": 3, "on_full": "drop", "process": {"dist": "normal", "mean": 300, "stddev": 90}, "downstream": [{"to": "resolved", "weight": 0.78}, {"to": "specialist_1", "weight": 0.11}, {"to": "specialist_2", "weight": 0.11}]},
+    {"id": "agent_5", "type": "machine", "label": "Agent 5", "x": 640, "y": 740, "capacity": 3, "on_full": "drop", "process": {"dist": "normal", "mean": 300, "stddev": 90}, "downstream": [{"to": "resolved", "weight": 0.78}, {"to": "specialist_1", "weight": 0.11}, {"to": "specialist_2", "weight": 0.11}]},
+    {"id": "specialist_1", "type": "machine", "label": "Specialist 1", "x": 910, "y": 260, "capacity": 4, "process": {"dist": "normal", "mean": 600, "stddev": 180}, "downstream": [{"to": "resolved", "weight": 0.93}, {"to": "agent_1", "weight": 0.07, "rework": true, "bypass": true, "label": "callback"}]},
+    {"id": "specialist_2", "type": "machine", "label": "Specialist 2", "x": 910, "y": 560, "capacity": 4, "process": {"dist": "normal", "mean": 600, "stddev": 180}, "downstream": [{"to": "resolved", "weight": 0.93}, {"to": "agent_1", "weight": 0.07, "rework": true, "bypass": true, "label": "callback"}]},
+    {"id": "resolved", "type": "sink", "label": "Resolved", "x": 1180, "y": 410}
+  ]
+}

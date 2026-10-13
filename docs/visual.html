@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factory DES Visual</title>
+<style>
+:root{
+  --bg:#f6f6f3; --panel:#ffffff; --ink:#1d1d1b; --muted:#6b6b66; --line:#d9d9d2;
+  --idle:#8fa3b8; --busy:#3aa66b; --blocked:#e0a02e; --down:#d8514a; --rework:#8a63d2; --part:#2f6fdb;
+  --accent:#2f6fdb;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#141517; --panel:#1d1f22; --ink:#ececE8; --muted:#9a9a94; --line:#33363a;
+    --idle:#6f869e; --busy:#4cc184; --blocked:#e8b04a; --down:#ea6a62; --rework:#a58af0; --part:#6aa0ff; --accent:#6aa0ff; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:1120px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:16px;margin:36px 0 8px}
+p.sub{color:var(--muted);margin:0 0 16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+canvas{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 10px}
+button,select,input{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px}
+button{cursor:pointer}
+button:hover{border-color:var(--accent)}
+input[type=number]{width:80px}
+label{color:var(--muted);display:flex;gap:6px;align-items:center}
+.grid{display:grid;grid-template-columns:1.1fr 1fr;gap:12px;margin-top:12px}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.log{height:150px;overflow:auto;white-space:pre;color:var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 0;color:var(--muted);font-size:12.5px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.kpi{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px}
+.kpi div{min-width:90px}.kpi b{display:block;font-size:18px}.kpi span{color:var(--muted);font-size:12px}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--ink);font:12px system-ui,sans-serif}
+svg .m{fill:var(--muted)}
+svg .box{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+svg .ln{stroke:var(--muted);stroke-width:1.5;fill:none}
+svg .hot{stroke:var(--accent);stroke-width:2;fill:none}
+svg .arrowhead{fill:var(--muted)}
+.note{color:var(--muted);font-size:13px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Factory Line DES: top-down view</h1>
+  <p class="sub">Part 1 is a live miniature of the proposed simulator (same events, same blocking rules, same routing). Parts 2 and 3 are the engine loop and the machine state machine.</p>
+
+  <h2>1 · Plant floor, running live</h2>
+  <div class="card">
+    <div class="controls">
+      <button id="play">Pause</button>
+      <button id="step">Step 1 event</button>
+      <button id="reset">Reset</button>
+      <label>Speed
+        <select id="speed"><option value="10">10×</option><option value="60" selected>60×</option><option value="300">300×</option><option value="1500">1500×</option></select>
+      </label>
+      <label>Mean arrival gap <input id="arr" type="range" min="9" max="20" step="0.5" value="14"><span id="arrv" class="mono">14 s</span></label>
+      <label title="Rework parts may exceed the buffer limit, which breaks the circular wait"><input id="lane" type="checkbox" checked> rework bypass lane</label>
+      <label>Seed <input id="seed" type="number" value="42"></label>
+    </div>
+    <div id="dead" style="display:none;color:#fff;background:var(--down);border-radius:6px;padding:6px 10px;margin-bottom:8px;font-weight:600">DEADLOCK: every machine is BLOCKED or idle behind a full buffer, and nothing is running or being repaired. Enable the rework lane and press Reset.</div>
+    <canvas id="cv" width="920" height="430"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--idle)"></i>IDLE / STARVED</span>
+      <span><i style="background:var(--busy)"></i>BUSY</span>
+      <span><i style="background:var(--blocked)"></i>BLOCKED (finished part cannot leave)</span>
+      <span><i style="background:var(--down)"></i>DOWN</span>
+      <span><i style="background:var(--part)"></i>part</span>
+      <span><i style="background:var(--rework)"></i>reworked part</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="kpi" id="kpi"></div>
+      <table id="tbl"></table>
+      <div class="note" id="little"></div>
+    </div>
+    <div class="card">
+      <div style="color:var(--muted);font-size:12px;margin-bottom:4px">FUTURE EVENT LIST (min-heap head first)</div>
+      <div class="mono" id="fel" style="min-height:112px"></div>
+      <div style="color:var(--muted);font-size:12px;margin:8px 0 4px">EVENT LOG</div>
+      <div class="mono log" id="log"></div>
+    </div>
+  </div>
+
+  <h2>2 · The engine loop</h2>
+  <div class="card">
+    <svg viewBox="0 0 900 300" role="img" aria-label="DES engine loop">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="arrowhead"/></marker></defs>
+      <rect class="box" x="20" y="90" width="190" height="120" rx="10"/>
+      <text x="115" y="114" text-anchor="middle" style="font-weight:600">Future Event List</text>
+      <text x="115" y="134" text-anchor="middle" class="m">min-heap on (time, seq)</text>
+      <text x="115" y="158" text-anchor="middle" class="mono">t=41.2 COMPLETED asmA</text>
+      <text x="115" y="176" text-anchor="middle" class="mono">t=44.0 SPAWNED</text>
+      <text x="115" y="194" text-anchor="middle" class="mono">t=97.5 FAILED mill</text>
+
+      <rect class="box" x="280" y="90" width="170" height="120" rx="10"/>
+      <text x="365" y="114" text-anchor="middle" style="font-weight:600">1. Pop earliest</text>
+      <text x="365" y="140" text-anchor="middle" class="m">2. clock ← event.time</text>
+      <text x="365" y="160" text-anchor="middle" class="m">(time jumps, never ticks)</text>
+      <text x="365" y="184" text-anchor="middle" class="m">3. accumulate stats</text>
+      <text x="365" y="200" text-anchor="middle" class="m">for the elapsed interval</text>
+
+      <rect class="box" x="520" y="30" width="190" height="240" rx="10"/>
+      <text x="615" y="54" text-anchor="middle" style="font-weight:600">4. Dispatch handler</text>
+      <text x="615" y="86" text-anchor="middle" class="mono">PART_SPAWNED</text>
+      <text x="615" y="112" text-anchor="middle" class="mono">PROCESSING_COMPLETED</text>
+      <text x="615" y="138" text-anchor="middle" class="mono">BUFFER_SLOT_FREED</text>
+      <text x="615" y="164" text-anchor="middle" class="mono">MACHINE_FAILED</text>
+      <text x="615" y="190" text-anchor="middle" class="mono">MACHINE_REPAIRED</text>
+      <text x="615" y="216" text-anchor="middle" class="mono">SIMULATION_END → stop</text>
+      <text x="615" y="248" text-anchor="middle" class="m">stale events (old gen) dropped</text>
+
+      <rect class="box" x="770" y="90" width="115" height="120" rx="10"/>
+      <text x="827" y="114" text-anchor="middle" style="font-weight:600">Plant state</text>
+      <text x="827" y="138" text-anchor="middle" class="m">machines</text>
+      <text x="827" y="156" text-anchor="middle" class="m">buffers</text>
+      <text x="827" y="174" text-anchor="middle" class="m">parts, RNGs</text>
+      <text x="827" y="192" text-anchor="middle" class="m">stats</text>
+
+      <line class="ln" x1="210" y1="150" x2="278" y2="150" marker-end="url(#ah)"/>
+      <line class="ln" x1="450" y1="150" x2="518" y2="150" marker-end="url(#ah)"/>
+      <line class="ln" x1="710" y1="150" x2="768" y2="150" marker-end="url(#ah)"/>
+      <path class="hot" d="M827 90 C 827 10, 115 10, 115 88" marker-end="url(#ah)"/>
+      <text x="470" y="22" text-anchor="middle" class="m">handlers read/mutate state, then schedule(t + sampled delay, new event)</text>
+    </svg>
+    <div class="note">Nothing happens between events. A 10-hour run is only as many loop iterations as there are events, which is why it finishes in milliseconds.</div>
+  </div>
+
+  <h2>3 · One machine's state machine</h2>
+  <div class="card">
+    <svg viewBox="0 0 800 320" role="img" aria-label="Machine state machine">
+      <defs><marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="arrowhead"/></marker></defs>
+      <rect x="70" y="95" width="120" height="50" rx="10" style="fill:var(--idle)"/><text x="130" y="125" text-anchor="middle" style="fill:#fff;font-weight:600">IDLE / STARVED</text>
+      <rect x="340" y="95" width="120" height="50" rx="10" style="fill:var(--busy)"/><text x="400" y="125" text-anchor="middle" style="fill:#fff;font-weight:600">BUSY</text>
+      <rect x="610" y="95" width="120" height="50" rx="10" style="fill:var(--blocked)"/><text x="670" y="125" text-anchor="middle" style="fill:#fff;font-weight:600">BLOCKED</text>
+      <rect x="340" y="235" width="120" height="50" rx="10" style="fill:var(--down)"/><text x="400" y="265" text-anchor="middle" style="fill:#fff;font-weight:600">DOWN</text>
+
+      <line class="ln" x1="190" y1="108" x2="338" y2="108" marker-end="url(#ah2)"/>
+      <text x="265" y="100" text-anchor="middle" class="m">part waiting in buffer</text>
+      <line class="ln" x1="338" y1="132" x2="192" y2="132" marker-end="url(#ah2)"/>
+      <text x="265" y="150" text-anchor="middle" class="m">done, downstream has room</text>
+      <line class="ln" x1="460" y1="108" x2="608" y2="108" marker-end="url(#ah2)"/>
+      <text x="535" y="100" text-anchor="middle" class="m">done, downstream full</text>
+      <path class="hot" d="M670 93 C 670 15, 130 15, 130 93" marker-end="url(#ah2)"/>
+      <text x="400" y="40" text-anchor="middle" class="m">BUFFER_SLOT_FREED: release part downstream, go IDLE, pull next</text>
+      <line class="ln" x1="385" y1="147" x2="385" y2="233" marker-end="url(#ah2)"/>
+      <text x="375" y="195" text-anchor="end" class="m">MACHINE_FAILED</text>
+      <line class="ln" x1="415" y1="233" x2="415" y2="147" marker-end="url(#ah2)"/>
+      <text x="425" y="195" class="m">MACHINE_REPAIRED (resume)</text>
+      <text x="400" y="308" text-anchor="middle" class="m">IDLE and BLOCKED machines can fail too; on repair a BLOCKED machine retries its release.</text>
+    </svg>
+  </div>
+</div>
+
+<script>
+// ---------- miniature DES mirroring the C++ design ----------
+const $ = id => document.getElementById(id);
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const expo = (r,m)=> -m*Math.log(1-r());
+function normalT(r,m,sd){ for(;;){ const u=1-r(), v=r(); const z=Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); const x=m+sd*z; if(x>0.1*m) return x; } }
+
+const DEF = [
+  {id:'mill', name:'Milling',    x:215, y:215, cap:5, mean:9,  sd:1.5, dist:'normal', mtbf:900,  mttr:90, next:'mill->asm'},
+  {id:'asmA', name:'Assembly A', x:445, y:105, cap:3, mean:20, sd:3,   dist:'normal', mtbf:700,  mttr:80, group:'asm', next:'insp'},
+  {id:'asmB', name:'Assembly B', x:445, y:325, cap:3, mean:22, sd:3,   dist:'normal', mtbf:700,  mttr:80, group:'asm', next:'insp'},
+  {id:'insp', name:'Inspection', x:665, y:215, cap:3, mean:6,  sd:0,   dist:'exp',    mtbf:1200, mttr:60,
+     route:[['ship',.90],['asm',.08],['scrap',.02]]}
+];
+const GROUPS = {asm:['asmA','asmB']};
+const SINK = {ship:{x:850,y:130,label:'Shipped'}, scrap:{x:850,y:300,label:'Scrap'}};
+const SRC = {x:55,y:215};
+const W=84,H=56;
+const COL = {IDLE:'--idle',BUSY:'--busy',BLOCKED:'--blocked',DOWN:'--down'};
+
+let S, playing=true, speed=60;
+
+function init(seed){
+  S={t:0,seq:0,fel:[],log:[],lastT:0,wipArea:0,spawned:0,rejected:0,done:0,scrap:0,departed:0,sojourn:0,flights:[],pid:0,st:{},
+     rngArr:mulberry32(seed*7919+1), arrMean:+$('arr').value};
+  DEF.forEach((d,i)=>{
+    S.st[d.id]=Object.assign({},d,{queue:[],state:'IDLE',holding:null,remaining:0,endT:0,gen:0,since:0,
+      time:{IDLE:0,BUSY:0,BLOCKED:0,DOWN:0},out:null,blockedAt:0,
+      rp:mulberry32(seed*7919+10+i*3), rf:mulberry32(seed*7919+11+i*3), rr:mulberry32(seed*7919+12+i*3)});
+    schedule(expo(S.st[d.id].rf,d.mtbf),'MACHINE_FAILED',d.id);
+  });
+  schedule(expo(S.rngArr,S.arrMean),'PART_SPAWNED',null);
+}
+function schedule(t,type,id,gen=0){
+  const e={t,seq:S.seq++,type,id,gen};
+  let lo=0,hi=S.fel.length;
+  while(lo<hi){const m=(lo+hi)>>1; const f=S.fel[m]; if(f.t<e.t||(f.t===e.t&&f.seq<e.seq)) lo=m+1; else hi=m;}
+  S.fel.splice(lo,0,e);
+}
+function setState(s,ns){ if(s.state===ns) return; s.time[s.state]+=S.t-s.since; s.since=S.t; s.state=ns; }
+function wip(){ let n=0; for(const k in S.st){ n+=S.st[k].queue.length+(S.st[k].holding?1:0);} return n; }
+function pos(id){ return S.st[id]?{x:S.st[id].x,y:S.st[id].y}:SINK[id]||SRC; }
+function flight(a,b,rw){ S.flights.push({a:pos(a),b:pos(b),w0:performance.now(),rw}); }
+
+function members(node){ return GROUPS[node]||[node]; }
+function pickTarget(node,bypass){ // shortest-queue among members with room
+  let best=null;
+  for(const id of members(node)){ const m=S.st[id]; if((bypass||m.queue.length<m.cap) && (!best||m.queue.length<best.queue.length)) best=m; }
+  return best;
+}
+const laneOn=()=>$('lane').checked;
+function hasRoom(node,rework){ return SINK[node]||pickTarget(node,rework&&laneOn())!==null; }
+function decideRoute(s){
+  if(s.route){ let u=s.rr(),c=0; for(const [n,p] of s.route){ c+=p; if(u<c) return n; } return s.route[0][0]; }
+  return s.next==='mill->asm' ? 'asm' : s.next;
+}
+function tryStart(s){
+  if(s.state!=='IDLE'||!s.queue.length) return;
+  s.holding=s.queue.shift();
+  const d = s.dist==='exp'? expo(s.rp,s.mean) : normalT(s.rp,s.mean,s.sd);
+  s.remaining=d; s.endT=S.t+d; setState(s,'BUSY'); s.gen++;
+  schedule(s.endT,'PROCESSING_COMPLETED',s.id,s.gen);
+  schedule(S.t,'BUFFER_SLOT_FREED',s.id);          // a slot just opened in s's input buffer
+}
+function attemptRelease(s){
+  const node=s.out, part=s.holding;
+  if(SINK[node]){
+    flight(s.id,node,part.rw);
+    S.departed++; S.sojourn+=S.t-part.born;
+    if(node==='ship') S.done++; else S.scrap++;
+  } else {
+    const dest=pickTarget(node, s.isRework&&laneOn());
+    if(!dest){ if(s.state!=='BLOCKED'){ setState(s,'BLOCKED'); s.blockedAt=S.t; } return; }
+    flight(s.id,dest.id,part.rw); dest.queue.push(part);
+    setState(s,'IDLE'); s.holding=null; s.out=null;
+    s.isRework=false; tryStart(dest); tryStart(s); return;
+  }
+  s.holding=null; s.out=null; setState(s,'IDLE'); tryStart(s);
+}
+function handle(e){
+  switch(e.type){
+    case 'PART_SPAWNED':{
+      schedule(S.t+expo(S.rngArr,S.arrMean),'PART_SPAWNED',null);
+      const m=S.st.mill; S.spawned++;
+      if(m.queue.length<m.cap){ const p={id:++S.pid,born:S.t,rw:0}; flight('src','mill',0); m.queue.push(p); tryStart(m); }
+      else S.rejected++;
+      break; }
+    case 'PROCESSING_COMPLETED':{
+      const s=S.st[e.id]; if(e.gen!==s.gen) return false;   // stale (machine broke mid-cycle)
+      s.remaining=0; s.out=decideRoute(s);
+      s.isRework=(s.out==='asm' && !!s.route); if(s.isRework) s.holding.rw++;
+      attemptRelease(s); break; }
+    case 'BUFFER_SLOT_FREED':{
+      let go=true;
+      while(go){ go=false;
+        const bl=Object.values(S.st).filter(x=>x.state==='BLOCKED').sort((a,b)=>a.blockedAt-b.blockedAt);
+        for(const b of bl){ if(hasRoom(b.out,b.isRework)){ attemptRelease(b); go=true; break; } } }
+      break; }
+    case 'MACHINE_FAILED':{
+      const s=S.st[e.id];
+      if(s.state==='BUSY'){ s.remaining=s.endT-S.t; s.gen++; }   // invalidate pending completion
+      setState(s,'DOWN');
+      schedule(S.t+expo(s.rf,s.mttr),'MACHINE_REPAIRED',s.id); break; }
+    case 'MACHINE_REPAIRED':{
+      const s=S.st[e.id];
+      schedule(S.t+expo(s.rf,s.mtbf),'MACHINE_FAILED',s.id);
+      if(s.holding && s.remaining>0){ s.endT=S.t+s.remaining; setState(s,'BUSY'); s.gen++; schedule(s.endT,'PROCESSING_COMPLETED',s.id,s.gen); }
+      else if(s.holding){ setState(s,'IDLE'); attemptRelease(s); }
+      else { setState(s,'IDLE'); tryStart(s); }
+      break; }
+  }
+  return true;
+}
+function step(){
+  const e=S.fel.shift(); if(!e) return;
+  S.wipArea+=wip()*(e.t-S.lastT); S.lastT=e.t; S.t=e.t;
+  const ok=handle(e);
+  if(ok!==false){ S.log.push(`t=${e.t.toFixed(1).padStart(7)}  ${e.type}${e.id?' '+e.id:''}`); if(S.log.length>40) S.log.shift(); }
+}
+
+// ---------- analytics ----------
+function pct(s,k){ const T=Math.max(S.t,1e-9); return 100*(s.time[k]+(s.state===k?S.t-s.since:0))/T; }
+function neighbours(){
+  const up={},dn={}; DEF.forEach(d=>{up[d.id]=[];dn[d.id]=[];});
+  DEF.forEach(d=>{
+    const outs = d.route? d.route.map(r=>r[0]).filter(n=>!SINK[n]) : [d.next==='mill->asm'?'asm':d.next];
+    outs.forEach(n=>members(n).forEach(m=>{ if(up[m]){ dn[d.id].push(m); up[m].push(d.id);} }));
+  });
+  return {up,dn};
+}
+const NB=neighbours(); const ALPHA=0.5,BETA=0.5;
+function bottleneck(){
+  let best=null,bi=-1; const idx={};
+  for(const d of DEF){
+    const s=S.st[d.id];
+    const avg=(ids,k)=>ids.length? ids.reduce((a,i)=>a+pct(S.st[i],k),0)/ids.length : 0;
+    const i=pct(s,'BUSY')+pct(s,'DOWN')*0 + ALPHA*avg(NB.dn[d.id],'IDLE') + BETA*avg(NB.up[d.id],'BLOCKED');
+    idx[d.id]=i; if(i>bi){bi=i;best=d.id;}
+  }
+  return {best,idx};
+}
+
+// ---------- rendering ----------
+const cv=$('cv'), ctx=cv.getContext('2d');
+const dpr=Math.min(window.devicePixelRatio||1,2);
+cv.width=920*dpr; cv.height=430*dpr; ctx.scale(dpr,dpr);
+let css; function readCss(){ const c=getComputedStyle(document.documentElement); css=n=>c.getPropertyValue(n).trim(); }
+function arrow(x1,y1,x2,y2,dash){
+  ctx.strokeStyle=css('--muted'); ctx.fillStyle=css('--muted'); ctx.lineWidth=1.5; ctx.setLineDash(dash||[]);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.setLineDash([]);
+  const a=Math.atan2(y2-y1,x2-x1); ctx.beginPath(); ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-8*Math.cos(a-0.4),y2-8*Math.sin(a-0.4)); ctx.lineTo(x2-8*Math.cos(a+0.4),y2-8*Math.sin(a+0.4)); ctx.fill();
+}
+function rr(x,y,w,h,r){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
+function draw(){
+  readCss();
+  ctx.clearRect(0,0,920,430);
+  ctx.font='12px system-ui,sans-serif'; ctx.textAlign='center';
+  const L=x=>x-W/2, R=x=>x+W/2;
+  // edges
+  arrow(SRC.x+24,215,L(215)-82,215);                         // source -> mill buffer
+  arrow(R(215),205,L(445)-48,105+6); arrow(R(215),225,L(445)-48,325-6);
+  arrow(R(445),105,L(665)-48,205); arrow(R(445),325,L(665)-48,225);
+  arrow(R(665),205,SINK.ship.x-30,SINK.ship.y+4); arrow(R(665),225,SINK.scrap.x-30,SINK.scrap.y-4);
+  // rework (dashed curves)
+  ctx.strokeStyle=css('--rework'); ctx.fillStyle=css('--rework'); ctx.setLineDash([5,4]); ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(665,187); ctx.bezierCurveTo(665,30,445,30,445,76); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(665,243); ctx.bezierCurveTo(665,400,445,400,445,354); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=css('--rework'); ctx.fillText('8% rework',555,38); ctx.fillText('8% rework',555,398);
+  // source / sinks
+  ctx.fillStyle=css('--muted'); ctx.strokeStyle=css('--line');
+  ctx.fillText('Arrivals',SRC.x,SRC.y+4); ctx.beginPath(); ctx.arc(SRC.x,SRC.y,24,0,7); ctx.stroke();
+  for(const k in SINK){ const s=SINK[k]; rr(s.x-30,s.y-18,60,36,8); ctx.stroke();
+    ctx.fillStyle=css('--ink'); ctx.fillText(s.label,s.x,s.y-2); ctx.fillStyle=css('--muted');
+    ctx.fillText(k==='ship'?S.done:S.scrap, s.x, s.y+12); }
+  ctx.fillStyle=css('--muted'); ctx.fillText('90%',775,175); ctx.fillText('2%',775,270);
+  const bn=bottleneck().best;
+  // stations
+  for(const d of DEF){
+    const s=S.st[d.id];
+    // buffer slots (left of machine)
+    for(let i=0;i<s.cap;i++){
+      const sx=L(d.x)-10-(i+1)*15, sy=d.y-7;
+      ctx.strokeStyle=css('--line'); ctx.lineWidth=1.5; ctx.strokeRect(sx,sy,13,13);
+      const p=s.queue[s.queue.length-1-i]; // slot nearest machine = head of queue
+      const q=s.queue[i];
+      const part=s.queue[i];
+      if(part){ ctx.fillStyle=css(part.rw?'--rework':'--part'); ctx.fillRect(sx+2,sy+2,9,9); }
+    }
+    // machine
+    ctx.fillStyle=css(COL[s.state]); rr(L(d.x),d.y-H/2,W,H,10); ctx.fill();
+    if(d.id===bn && S.t>600){ ctx.strokeStyle=css('--ink'); ctx.lineWidth=2.5; rr(L(d.x)-3,d.y-H/2-3,W+6,H+6,12); ctx.stroke(); }
+    ctx.fillStyle='#fff'; ctx.font='600 12px system-ui,sans-serif'; ctx.fillText(d.name,d.x,d.y-4);
+    ctx.font='11px system-ui,sans-serif'; ctx.fillText(s.state==='IDLE'?'STARVED':s.state,d.x,d.y+12);
+    if(s.holding){ ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(R(d.x)-10,d.y-H/2+10,5,0,7); ctx.fill();
+      ctx.fillStyle=css(s.holding.rw?'--rework':'--part'); ctx.beginPath(); ctx.arc(R(d.x)-10,d.y-H/2+10,3.5,0,7); ctx.fill(); }
+    ctx.font='12px system-ui,sans-serif'; ctx.fillStyle=css('--muted');
+    ctx.fillText(`buffer ${s.queue.length}/${s.cap}${s.queue.length>s.cap?' (+rework)':''}`, L(d.x)-10-s.cap*15/2-2, d.y+26);
+    if(d.id===bn && S.t>600){ ctx.fillStyle=css('--ink'); ctx.font='600 11px system-ui,sans-serif'; ctx.fillText('BOTTLENECK',d.x,d.y-H/2-10); ctx.font='12px system-ui,sans-serif'; }
+  }
+  // grouping label
+  ctx.fillStyle=css('--muted'); ctx.fillText('parallel group: shortest-queue routing',445,215);
+  // flights
+  const now=performance.now();
+  S.flights=S.flights.filter(f=>now-f.w0<420);
+  for(const f of S.flights){ const u=(now-f.w0)/420; const x=f.a.x+(f.b.x-f.a.x)*u, y=f.a.y+(f.b.y-f.a.y)*u;
+    ctx.fillStyle=css(f.rw?'--rework':'--part'); ctx.beginPath(); ctx.arc(x,y,5,0,7); ctx.fill(); }
+}
+function fmtT(t){ const m=Math.floor(t/60); return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}:${String(Math.floor(t%60)).padStart(2,'0')}`; }
+function panels(){
+  const hrs=S.t/3600, uph=hrs>0? S.done/hrs:0;
+  $('kpi').innerHTML=`<div><b>${fmtT(S.t)}</b><span>sim clock</span></div><div><b>${S.spawned}</b><span>spawned</span></div>`+
+    `<div><b>${S.done}</b><span>completed</span></div><div><b>${S.scrap}</b><span>scrapped</span></div>`+
+    `<div><b>${wip()}</b><span>WIP now</span></div><div><b>${uph.toFixed(1)}</b><span>units / hr</span></div><div><b>${S.rejected}</b><span>rejected at door</span></div>`;
+  const bn=bottleneck();
+  $('tbl').innerHTML='<tr><th>Station</th><th>Busy</th><th>Starved</th><th>Blocked</th><th>Down</th><th>Index</th></tr>'+
+    DEF.map(d=>{const s=S.st[d.id];return `<tr><td>${d.name}${d.id===bn.best&&S.t>600?' ◀':''}</td><td>${pct(s,'BUSY').toFixed(0)}%</td><td>${pct(s,'IDLE').toFixed(0)}%</td><td>${pct(s,'BLOCKED').toFixed(0)}%</td><td>${pct(s,'DOWN').toFixed(0)}%</td><td>${bn.idx[d.id].toFixed(0)}</td></tr>`}).join('');
+  const inSys=wip(); const cons = S.spawned-S.rejected === S.done+S.scrap+inSys;
+  const L_=S.t>0? S.wipArea/S.t:0, lam=S.t>0? S.departed/S.t:0, Wt=S.departed? S.sojourn/S.departed:0;
+  const err = L_>0? Math.abs(L_-lam*Wt)/L_*100:0;
+  $('little').innerHTML=`Little's Law: L = ${L_.toFixed(2)} · λW = ${(lam*Wt).toFixed(2)} (gap ${err.toFixed(1)}%, from parts still in flight at the cut-off). `+
+    `Conservation: admitted ${S.spawned-S.rejected} = ${S.done} + ${S.scrap} + ${inSys} ${cons?'✓':'✗'}`;
+  const V=Object.values(S.st); $('dead').style.display=(S.t>60&&V.some(x=>x.state==='BLOCKED')&&!V.some(x=>x.state==='BUSY'||x.state==='DOWN'))?'block':'none';
+  $('fel').textContent=S.fel.slice(0,7).map(e=>`t=${e.t.toFixed(1).padStart(7)}  #${String(e.seq).padStart(4)}  ${e.type}${e.id?' '+e.id:''}`).join('\n');
+  const lg=$('log'); const atEnd=lg.scrollTop+lg.clientHeight>=lg.scrollHeight-8; lg.textContent=S.log.join('\n'); if(atEnd) lg.scrollTop=lg.scrollHeight;
+}
+let last=performance.now(), target=0;
+function frame(now){
+  const dt=Math.min((now-last)/1000,0.1); last=now;
+  if(playing){ target+=dt*speed; let n=0; while(S.fel.length && S.fel[0].t<=target && n++<20000) step(); S.t=Math.max(S.t,Math.min(target,S.fel[0]?S.fel[0].t:target)); }
+  draw(); panels(); requestAnimationFrame(frame);
+}
+function reset(){ init(+$('seed').value||42); target=0; }
+$('play').onclick=()=>{playing=!playing; $('play').textContent=playing?'Pause':'Play'; if(playing) target=S.t;};
+$('step').onclick=()=>{ playing=false; $('play').textContent='Play'; step(); target=S.t; };
+$('reset').onclick=reset; $('seed').onchange=reset;
+$('speed').onchange=e=>speed=+e.target.value;
+$('arr').oninput=e=>{ $('arrv').textContent=e.target.value+' s'; S.arrMean=+e.target.value; };
+reset(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

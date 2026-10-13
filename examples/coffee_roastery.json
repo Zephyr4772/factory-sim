@@ -1,0 +1,16 @@
+{
+  "name": "Food and drink: specialty coffee roastery",
+  "description": "Three kinds of green coffee share two roasters; switching origin costs a 4-minute cleaning changeover. Roasted lots cool, rest in a degassing silo for 30 minutes, pass a cupping panel and are bagged in sixes. A good example of changeovers: try lowering the setup time or splitting the origins across roasters.",
+  "simulation": {"duration_seconds": 28800, "random_seed": 71, "warmup_seconds": 3600, "sample_interval": 120},
+  "nodes": [
+    {"id": "green", "type": "source", "label": "Green coffee lots", "x": 100, "y": 260, "interarrival": {"dist": "exponential", "mean": 420}, "mix": {"arabica": 0.6, "robusta": 0.25, "decaf": 0.15}, "on_blocked": "wait", "routing": {"policy": "shortest_queue"}, "downstream": ["roaster_1", "roaster_2"]},
+    {"id": "roaster_1", "type": "machine", "label": "Roaster 1", "x": 370, "y": 155, "capacity": 3, "process_by_type": {"arabica": {"dist": "normal", "mean": 720, "stddev": 60}, "robusta": {"dist": "normal", "mean": 600, "stddev": 60}, "decaf": {"dist": "normal", "mean": 780, "stddev": 60}}, "setup": 240, "mtbf": 28800, "mttr": 1800, "downstream": ["cooling"]},
+    {"id": "roaster_2", "type": "machine", "label": "Roaster 2", "x": 370, "y": 365, "capacity": 3, "process_by_type": {"arabica": {"dist": "normal", "mean": 720, "stddev": 60}, "robusta": {"dist": "normal", "mean": 600, "stddev": 60}, "decaf": {"dist": "normal", "mean": 780, "stddev": 60}}, "setup": 240, "mtbf": 28800, "mttr": 1800, "downstream": ["cooling"]},
+    {"id": "cooling", "type": "delay", "label": "Cooling tray", "x": 640, "y": 260, "transit": 300, "downstream": ["rest"]},
+    {"id": "rest", "type": "delay", "label": "Degassing silo", "x": 910, "y": 260, "transit": 1800, "downstream": ["cupping"]},
+    {"id": "cupping", "type": "quality_gate", "label": "Cupping QC", "x": 1180, "y": 260, "capacity": 4, "process": {"dist": "normal", "mean": 180, "stddev": 40}, "threshold": 0.08, "max_reworks": 0, "pass_to": "pack", "scrap_to": "discard", "downstream": ["pack", "discard"]},
+    {"id": "pack", "type": "batcher", "label": "Bagging (x6)", "x": 1450, "y": 260, "batch_size": 6, "timeout": 900, "capacity": 12, "process": 240, "downstream": ["shipped"]},
+    {"id": "shipped", "type": "sink", "label": "Dispatched", "x": 1720, "y": 260},
+    {"id": "discard", "type": "sink", "label": "Off-spec", "x": 1450, "y": 470, "counts_as": "scrapped"}
+  ]
+}

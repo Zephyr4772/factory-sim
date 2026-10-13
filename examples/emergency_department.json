@@ -1,0 +1,18 @@
+{
+  "name": "Healthcare: emergency department",
+  "description": "Patients arrive as minor, urgent or critical. A triage nurse (priority queue, walk-outs when the waiting room is full) sends critical patients to a trauma bay and everyone else to the least busy of four exam rooms. Urgent cases often need the lab before discharge. Watch triage and the exam rooms as arrivals rise.",
+  "simulation": {"duration_seconds": 28800, "random_seed": 21, "warmup_seconds": 1800, "sample_interval": 120},
+  "nodes": [
+    {"id": "arrivals", "type": "source", "label": "Patient arrivals", "x": 100, "y": 485, "interarrival": {"dist": "exponential", "mean": 240}, "mix": {"minor": 0.55, "urgent": 0.35, "critical": 0.1}, "priority": {"critical": 3, "urgent": 2, "minor": 1}, "downstream": ["triage"]},
+    {"id": "triage", "type": "machine", "label": "Triage nurse", "x": 370, "y": 485, "capacity": 10, "on_full": "drop", "discipline": "priority", "process": {"dist": "normal", "mean": 180, "stddev": 40}, "routing": {"policy": "shortest_queue", "rules": [{"match": {"type": "critical"}, "to": "trauma"}, {"to": ["exam_1", "exam_2", "exam_3", "exam_4"]}]}, "downstream": ["trauma", "exam_1", "exam_2", "exam_3", "exam_4"]},
+    {"id": "trauma", "type": "machine", "label": "Trauma bay", "x": 640, "y": 110, "capacity": 3, "discipline": "fifo", "process": {"dist": "normal", "mean": 1500, "stddev": 300}, "downstream": ["admitted"]},
+    {"id": "exam_1", "type": "machine", "label": "Exam room 1", "x": 640, "y": 305, "capacity": 4, "discipline": "priority", "process_by_type": {"minor": {"dist": "normal", "mean": 900, "stddev": 200}, "urgent": {"dist": "normal", "mean": 1500, "stddev": 300}}, "downstream": [{"to": "lab", "weight": 0.3}, {"to": "discharge", "weight": 0.7}]},
+    {"id": "exam_2", "type": "machine", "label": "Exam room 2", "x": 640, "y": 470, "capacity": 4, "discipline": "priority", "process_by_type": {"minor": {"dist": "normal", "mean": 900, "stddev": 200}, "urgent": {"dist": "normal", "mean": 1500, "stddev": 300}}, "downstream": [{"to": "lab", "weight": 0.3}, {"to": "discharge", "weight": 0.7}]},
+    {"id": "exam_3", "type": "machine", "label": "Exam room 3", "x": 640, "y": 635, "capacity": 4, "discipline": "priority", "process_by_type": {"minor": {"dist": "normal", "mean": 900, "stddev": 200}, "urgent": {"dist": "normal", "mean": 1500, "stddev": 300}}, "downstream": [{"to": "lab", "weight": 0.3}, {"to": "discharge", "weight": 0.7}]},
+    {"id": "exam_4", "type": "machine", "label": "Exam room 4", "x": 640, "y": 800, "capacity": 4, "discipline": "priority", "process_by_type": {"minor": {"dist": "normal", "mean": 900, "stddev": 200}, "urgent": {"dist": "normal", "mean": 1500, "stddev": 300}}, "downstream": [{"to": "lab", "weight": 0.3}, {"to": "discharge", "weight": 0.7}]},
+    {"id": "lab", "type": "machine", "label": "Lab", "x": 910, "y": 860, "capacity": 6, "process": {"dist": "exponential", "mean": 600}, "downstream": ["discharge"]},
+    {"id": "discharge", "type": "machine", "label": "Discharge desk", "x": 1180, "y": 485, "capacity": 6, "process": {"dist": "normal", "mean": 240, "stddev": 60}, "downstream": ["home"]},
+    {"id": "home", "type": "sink", "label": "Discharged home", "x": 1450, "y": 485},
+    {"id": "admitted", "type": "sink", "label": "Admitted to ward", "x": 910, "y": 110}
+  ]
+}

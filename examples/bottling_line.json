@@ -1,0 +1,17 @@
+{
+  "name": "Manufacturing: beverage bottling line",
+  "description": "A high-speed filler, capper, labeler, fill-level check, case packer (batches of 12) and palletizer, linked by short conveyors with small buffers. The filler is the slowest machine and breaks down, so the machines downstream of it starve while the ones upstream block. This is a 30-minute run measured in bottles; use 5x playback speed.",
+  "simulation": {"duration_seconds": 1800, "random_seed": 8, "warmup_seconds": 120, "sample_interval": 10},
+  "nodes": [
+    {"id": "bottles", "type": "source", "label": "Empty bottles", "x": 100, "y": 260, "interarrival": 1.0, "on_blocked": "wait", "downstream": ["filler"]},
+    {"id": "filler", "type": "machine", "label": "Rotary filler", "x": 370, "y": 260, "capacity": 30, "process": {"dist": "normal", "mean": 1.2, "stddev": 0.1}, "mtbf": 900, "mttr": 40, "downstream": ["conv_fill"]},
+    {"id": "conv_fill", "type": "delay", "label": "Conveyor", "x": 640, "y": 260, "transit": 4, "capacity": 12, "downstream": ["capper"]},
+    {"id": "capper", "type": "machine", "label": "Capper", "x": 910, "y": 260, "capacity": 10, "process": {"dist": "normal", "mean": 0.85, "stddev": 0.05}, "downstream": ["labeler"]},
+    {"id": "labeler", "type": "machine", "label": "Labeler", "x": 1180, "y": 260, "capacity": 10, "process": {"dist": "normal", "mean": 0.9, "stddev": 0.08}, "mtbf": 1200, "mttr": 30, "downstream": ["check"]},
+    {"id": "check", "type": "quality_gate", "label": "Fill-level check", "x": 1450, "y": 260, "capacity": 8, "process": 0.3, "threshold": 0.02, "max_reworks": 0, "pass_to": "packer", "scrap_to": "rejects", "downstream": ["packer", "rejects"]},
+    {"id": "packer", "type": "batcher", "label": "Case packer (12)", "x": 1720, "y": 260, "batch_size": 12, "capacity": 24, "process": 6, "downstream": ["palletizer"]},
+    {"id": "palletizer", "type": "machine", "label": "Palletizer", "x": 1990, "y": 260, "capacity": 4, "process": 9, "downstream": ["pallets"]},
+    {"id": "pallets", "type": "sink", "label": "Pallets out", "x": 2260, "y": 260},
+    {"id": "rejects", "type": "sink", "label": "Rejects", "x": 1720, "y": 500, "counts_as": "scrapped"}
+  ]
+}

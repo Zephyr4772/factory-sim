@@ -1,0 +1,41 @@
+{
+  "simulation": { "duration_seconds": 7200.0, "random_seed": 42 },
+  "ingestion": {
+    "target_station": "milling_1",
+    "arrival_interval_mean": 12.0,
+    "distribution": "exponential"
+  },
+  "stations": [
+    {
+      "id": "milling_1",
+      "name": "CNC Milling",
+      "buffer_capacity": 5,
+      "process_time_mean": 10.0,
+      "process_time_stddev": 1.5,
+      "distribution": "normal",
+      "mtbf": 3600.0,
+      "mttr": 300.0,
+      "downstream": [ { "station_id": "assembly_1", "probability": 1.0 } ]
+    },
+    {
+      "id": "assembly_1",
+      "name": "Assembly",
+      "buffer_capacity": 4,
+      "process_time_mean": 9.0,
+      "process_time_stddev": 1.0,
+      "distribution": "normal",
+      "mtbf": 2400.0,
+      "mttr": 200.0,
+      "downstream": [ { "station_id": "inspection_1", "probability": 1.0 } ]
+    },
+    {
+      "id": "inspection_1",
+      "name": "Inspection",
+      "buffer_capacity": 3,
+      "process_time_mean": 5.0,
+      "process_time_stddev": 0.0,
+      "distribution": "exponential",
+      "downstream": []
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# build output
+build/
+build-*/
+out/
+.vs/
+*.user
+CMakeUserPresets.json
+
+# scratch files from running the CLI
+showcase/*.csv
+/*.pdf
+/replay.html
+/results.json

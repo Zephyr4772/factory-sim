@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factory Studio</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f3f4f6; --panel:#ffffff; --raised:#ffffff; --line:#e1e5ea; --line-strong:#b8c0cb;
+  --ink:#1b2129; --muted:#667180; --accent:#2563d6; --accent-soft:rgba(37,99,214,.10);
+  --idle:#8a94a3; --busy:#1f9461; --blocked:#c98a14; --down:#d03a37; --rework:#17909c; --grid:#dfe3e9;
+  --good:#1f9461; --warn:#c98a14; --bad:#d03a37;
+}
+*{box-sizing:border-box}
+*{scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:5px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:content-box}
+::-webkit-scrollbar-corner{background:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+button,select,input,textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line-strong);border-radius:6px}
+button{height:34px;padding:0 14px;font-weight:500;cursor:pointer;white-space:nowrap}
+button:hover{background:var(--raised);border-color:var(--muted)}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.primary:hover{filter:brightness(1.1)}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.45;cursor:not-allowed}
+select,input{height:34px;padding:0 10px}
+input[type=number]{width:100%}
+input[type=checkbox]{width:16px;height:16px;padding:0;accent-color:var(--accent)}
+input[type=range]{height:auto;padding:0;border:0;accent-color:var(--accent)}
+textarea{width:100%;padding:8px 10px;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.5;resize:vertical}
+
+header{min-height:60px;flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding:10px 24px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{font-weight:700;font-size:15px;white-space:nowrap}
+.brand span{color:var(--muted);font-weight:400;margin-left:8px}
+.group{display:flex;align-items:center;gap:8px;padding-left:16px;border-left:1px solid var(--line)}
+.sp{flex:1}
+.chip{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:12px;font-size:12px;background:var(--raised);border:1px solid var(--line-strong);color:var(--muted)}
+.chip.flag{border-color:var(--warn);color:var(--warn)}
+#msg{display:none;flex:none;padding:10px 24px;background:var(--bad);color:#fff;font-weight:500}
+#msg.info{background:var(--accent)}
+
+.workspace{flex:1;min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr) 360px}
+.side{background:var(--panel);overflow:auto;padding:24px 20px}
+.side.left{border-right:1px solid var(--line)}
+.side.right{border-left:1px solid var(--line)}
+.side h4{margin:28px 0 12px;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.9px;text-transform:uppercase}
+.side h4:first-child{margin-top:0}
+.pal{display:flex;align-items:center;gap:12px;width:100%;height:auto;margin:0 0 8px;padding:10px 12px;text-align:left;background:var(--raised);border-color:var(--line)}
+.pal:hover{border-color:var(--accent)}
+.pal i{width:4px;align-self:stretch;border-radius:2px;flex:none}
+.pal b{display:block;font-weight:600}
+.pal small{display:block;color:var(--muted);font-size:12px;line-height:1.3}
+.tips{color:var(--muted);font-size:12.5px;line-height:1.7}
+.tips p{margin:0 0 8px}
+kbd{font-family:ui-monospace,Consolas,monospace;font-size:11px;padding:1px 6px;border:1px solid var(--line-strong);border-radius:4px;background:var(--raised)}
+
+.center{display:flex;flex-direction:column;min-width:0;min-height:0}
+.stage{position:relative;flex:1;min-height:240px;background:var(--bg)}
+canvas#cv{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+.legend{position:absolute;left:20px;bottom:16px;display:flex;gap:18px;font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 14px}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.hint{position:absolute;right:20px;bottom:16px;color:var(--muted);font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 14px;pointer-events:none}
+.playbar{flex:none;display:flex;align-items:center;gap:16px;padding:12px 24px;border-top:1px solid var(--line);background:var(--panel)}
+.playbar input[type=range]{flex:1}
+.playbar #bPlay{width:76px}
+.mono{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+.timer{font-size:13px;min-width:72px}
+.results{flex:none;height:clamp(190px,32vh,320px);border-top:1px solid var(--line);background:var(--panel);overflow:auto;padding:0 24px 24px}
+.results.hide{display:none}
+.tabs{display:flex;gap:4px;margin:0 0 18px;border-bottom:1px solid var(--line)}
+.tabs button{height:40px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted);padding:0 14px;margin-bottom:-1px}
+.tabs button:hover{color:var(--ink);background:transparent}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+.results .tabs{position:sticky;top:0;background:var(--panel);padding-top:12px;z-index:1}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.kpi b{display:block;font-size:22px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+.kpi span{display:block;margin-top:2px;color:var(--muted);font-size:12px}
+.banner{border:1px solid var(--line-strong);border-radius:8px;padding:14px 16px;margin-bottom:12px;background:var(--raised)}
+.banner .bt{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.banner.bad{border-color:var(--bad)} .banner.bad .bt{color:var(--bad)}
+.banner.warn{border-color:var(--warn)} .banner.warn .bt{color:var(--warn)}
+.note{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:11px;letter-spacing:.6px;text-transform:uppercase}
+tr.row{cursor:pointer}
+tr.row:hover{background:var(--raised)}
+.bar{display:flex;height:10px;border-radius:2px;overflow:hidden;background:var(--line);min-width:160px}
+.bar i{display:block;height:100%}
+.tag{display:inline-block;margin-left:10px;padding:1px 8px;border-radius:3px;font-size:11px;font-weight:600;background:var(--warn);color:#fff}
+.deltabar{height:8px;border-radius:2px;min-width:2px}
+
+/* inspector */
+.prm{margin:0 0 18px}
+.prm>label{display:flex;justify-content:space-between;align-items:center;color:var(--ink);font-size:12.5px;font-weight:500;margin-bottom:6px}
+.prm .x{height:auto;border:0;background:transparent;padding:0;font-size:12px;font-weight:500;color:var(--accent)}
+.prm .x:hover{background:transparent;text-decoration:underline}
+.prm .doc{color:var(--muted);font-size:12px;margin-top:6px;line-height:1.45}
+.row2{display:flex;gap:8px;align-items:center}
+.row2>*{min-width:0}
+.edge{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px}
+.edge .row2{margin-bottom:10px}
+.edge label{display:inline-flex;gap:8px;align-items:center;color:var(--muted);font-size:12.5px;margin-right:14px}
+.sect{border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px;background:var(--raised)}
+.sect>b{display:block;margin-bottom:4px}
+.small{font-size:12.5px;color:var(--muted);line-height:1.5}
+details>summary{cursor:pointer;color:var(--muted);margin:12px 0 8px;font-size:12.5px}
+.actions{display:flex;gap:8px;margin-top:8px}
+@media (max-width:1300px){ .brand span{display:none} }
+@media (max-width:1100px){ .workspace{grid-template-columns:1fr} .side{max-height:220px} body{overflow:auto} .group{display:none} }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Factory Studio<span>pipeline simulator</span></div>
+  <div class="group">
+    <select id="examples" title="Load an example pipeline"></select>
+    <button id="bNew">New</button>
+    <button id="bLayout" title="Re-space the nodes left to right">Auto-layout</button>
+  </div>
+  <div class="group">
+    <button id="bLoad">Open file</button>
+    <button id="bSave">Save file</button>
+  </div>
+  <input type="file" id="file" accept=".json,application/json" style="display:none">
+  <span class="sp"></span>
+  <span id="stale" class="chip flag" style="display:none">Results out of date</span>
+  <div class="group">
+    <button id="bWhatIf" title="Measure which improvement helps the most">What-if</button>
+    <button id="bRep" title="20 independent runs with confidence intervals">Replicate x20</button>
+    <button id="bAudit" title="Generate an audit and health report (PDF) for this pipeline">Audit report (PDF)</button>
+    <button id="bExport" title="Download a self-contained replay page">Export replay</button>
+  </div>
+  <button id="bRun" class="primary" title="Ctrl+Enter">Run simulation</button>
+</header>
+<div id="msg"></div>
+
+<div class="workspace">
+  <aside class="side left">
+    <h4>Add node</h4>
+    <div id="palette"></div>
+    <h4>My node types</h4>
+    <div id="templates" class="small">None yet. Select a node and use Save as node type.</div>
+    <h4>Tips</h4>
+    <div class="tips">
+      <p>Click a type to add it. If a node is selected, the new node is wired after it.</p>
+      <p>Drag the round handle on a selected node onto another node to connect them.</p>
+      <p>Scroll to zoom, drag the background to pan. <kbd>Del</kbd> removes the selection, <kbd>Space</kbd> plays or pauses.</p>
+    </div>
+  </aside>
+
+  <main class="center">
+    <div class="stage" id="stage">
+      <canvas id="cv"></canvas>
+      <div class="legend"><span><i style="background:var(--idle)"></i>Starved</span><span><i style="background:var(--busy)"></i>Busy</span><span><i style="background:var(--blocked)"></i>Blocked</span><span><i style="background:var(--down)"></i>Down</span></div>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="playbar">
+      <button id="bPlay">Pause</button>
+      <span class="mono timer" id="tNow">00:00:00</span>
+      <input type="range" id="scrub" min="0" max="1000" value="0">
+      <span class="mono small timer" id="tEnd">00:00:00</span>
+      <button id="bRes" title="Show / hide the results panel">Hide results</button>
+      <select id="speed" title="Simulated seconds per real second">
+        <option value="5">5&times;</option><option value="30">30&times;</option>
+        <option value="120" selected>120&times;</option><option value="600">600&times;</option><option value="2400">2400&times;</option>
+      </select>
+    </div>
+    <section class="results" id="results"></section>
+  </main>
+
+  <aside class="side right">
+    <div class="tabs" id="rtabs">
+      <button data-t="node" class="on">Node</button><button data-t="sim">Simulation</button><button data-t="json">JSON</button>
+    </div>
+    <div id="inspector"></div>
+  </aside>
+</div>
+
+<script>
+window.EMBEDDED = {"config":{"description":"Patients arrive as minor, urgent or critical. A triage nurse (priority queue, walk-outs when the waiting room is full) sends critical patients to a trauma bay and everyone else to the least busy of four exam rooms. Urgent cases often need the lab before discharge. Watch triage and the exam rooms as arrivals rise.","name":"Healthcare: emergency department","nodes":[{"downstream":["triage"],"id":"arrivals","interarrival":{"dist":"exponential","mean":240},"label":"Patient arrivals","mix":{"critical":0.1,"minor":0.55,"urgent":0.35},"priority":{"critical":3,"minor":1,"urgent":2},"type":"source","x":100,"y":485},{"capacity":10,"discipline":"priority","downstream":["trauma","exam_1","exam_2","exam_3","exam_4"],"id":"triage","label":"Triage nurse","on_full":"drop","process":{"dist":"normal","mean":180,"stddev":40},"routing":{"policy":"shortest_queue","rules":[{"match":{"type":"critical"},"to":"trauma"},{"to":["exam_1","exam_2","exam_3","exam_4"]}]},"type":"machine","x":370,"y":485},{"capacity":3,"discipline":"fifo","downstream":["admitted"],"id":"trauma","label":"Trauma bay","process":{"dist":"normal","mean":1500,"stddev":300},"type":"machine","x":640,"y":110},{"capacity":4,"discipline":"priority","downstream":[{"to":"lab","weight":0.3},{"to":"discharge","weight":0.7}],"id":"exam_1","label":"Exam room 1","process_by_type":{"minor":{"dist":"normal","mean":900,"stddev":200},"urgent":{"dist":"normal","mean":1500,"stddev":300}},"type":"machine","x":640,"y":305},{"capacity":4,"discipline":"priority","downstream":[{"to":"lab","weight":0.3},{"to":"discharge","weight":0.7}],"id":"exam_2","label":"Exam room 2","process_by_type":{"minor":{"dist":"normal","mean":900,"stddev":200},"urgent":{"dist":"normal","mean":1500,"stddev":300}},"type":"machine","x":640,"y":470},{"capacity":4,"discipline":"priority","downstream":[{"to":"lab","weight":0.3},{"to":"discharge","weight":0.7}],"id":"exam_3","label":"Exam room 3","process_by_type":{"minor":{"dist":"normal","mean":900,"stddev":200},"urgent":{"dist":"normal","mean":1500,"stddev":300}},"type":"machine","x":640,"y":635},{"capacity":4,"discipline":"priority","downstream":[{"to":"lab","weight":0.3},{"to":"discharge","weight":0.7}],"id":"exam_4","label":"Exam room 4","process_by_type":{"minor":{"dist":"normal","mean":900,"stddev":200},"urgent":{"dist":"normal","mean":1500,"stddev":300}},"type":"machine","x":640,"y":800},{"capacity":6,"downstream":["discharge"],"id":"lab","label":"Lab","process":{"dist":"exponential","mean":600},"type":"machine","x":910,"y":860},{"capacity":6,"downstream":["home"],"id":"discharge","label":"Discharge desk","process":{"dist":"normal","mean":240,"stddev":60},"type":"machine","x":1180,"y":485},{"id":"home","label":"Discharged home","type":"sink","x":1450,"y":485},{"id":"admitted","label":"Admitted to ward","type":"sink","x":910,"y":110}],"simulation":{"duration_seconds":28800,"random_seed":21,"sample_interval":120,"warmup_seconds":1800}},"summary":{"avg_wip":13.47994543637037,"bottleneck":"exam_1","completed":95,"conservation_ok":true,"created":119,"cycle_time_s":3335.951105172043,"deadlock":null,"demand_limited":true,"diagnosis":"The line keeps up with demand (0.00% lost, sources never throttled): throughput equals the arrival rate, so nothing is binding right now. The busiest station is 'exam_1' at 99% busy; that is where capacity runs out first as demand grows.","little":{"L":13.47994543637037,"W":3335.951105172043,"gap_pct":14.758570015086827,"lambda":0.0034444444444444444},"lost":0,"lost_pct":0.0,"nodes":[{"avg_occupancy":0.0,"avg_wait_s":0.0,"blocked_pct":0.0,"bottleneck_index":0.0,"busy_pct":0.0,"capacity":-1,"down_pct":0.0,"failures":0,"id":"arrivals","idle_pct":100.0,"kind":"source","lost_units":0,"max_occupancy":0,"processed_units":0,"station":false},{"avg_occupancy":1.4087318502962962,"avg_wait_s":166.30900320183486,"blocked_pct":0.32856826666666666,"bottleneck_index":74.70517228785185,"busy_pct":73.06407491851851,"capacity":10,"down_pct":0.0,"failures":0,"id":"triage","idle_pct":26.607356814814814,"kind":"machine","lost_units":0,"max_occupancy":5,"processed_units":108,"station":true},{"avg_occupancy":0.6338301723703703,"avg_wait_s":194.3496156,"blocked_pct":0.0,"bottleneck_index":56.21774015259259,"busy_pct":56.184883325925924,"capacity":3,"down_pct":0.0,"failures":0,"id":"trauma","idle_pct":43.815116674074076,"kind":"machine","lost_units":0,"max_occupancy":2,"processed_units":10,"station":true},{"avg_occupancy":2.673803869962963,"avg_wait_s":1371.8013229599999,"blocked_pct":0.0,"bottleneck_index":102.47706091814815,"busy_pct":99.24783803703704,"capacity":4,"down_pct":0.0,"failures":0,"id":"exam_1","idle_pct":0.752161962962963,"kind":"machine","lost_units":0,"max_occupancy":5,"processed_units":25,"station":true},{"avg_occupancy":2.511192949148148,"avg_wait_s":1731.96873295,"blocked_pct":0.0,"bottleneck_index":102.36040569592593,"busy_pct":99.13118281481482,"capacity":4,"down_pct":0.0,"failures":0,"id":"exam_2","idle_pct":0.8688171851851851,"kind":"machine","lost_units":0,"max_occupancy":5,"processed_units":20,"station":true},{"avg_occupancy":2.1523627301111112,"avg_wait_s":1251.60039005,"blocked_pct":0.0,"bottleneck_index":95.3400128551852,"busy_pct":92.11078997407408,"capacity":4,"down_pct":0.0,"failures":0,"id":"exam_3","idle_pct":7.889210025925926,"kind":"machine","lost_units":0,"max_occupancy":5,"processed_units":20,"station":true},{"avg_occupancy":1.7587574583703705,"avg_wait_s":1165.1462460500002,"blocked_pct":0.0,"bottleneck_index":74.4996602625926,"busy_pct":71.27043738148149,"capacity":4,"down_pct":0.0,"failures":0,"id":"exam_4","idle_pct":28.729562618518518,"kind":"machine","lost_units":0,"max_occupancy":5,"processed_units":19,"station":true},{"avg_occupancy":1.017295818037037,"avg_wait_s":349.7370315483871,"blocked_pct":0.0,"bottleneck_index":64.12478033074073,"busy_pct":61.57458929259259,"capacity":6,"down_pct":0.0,"failures":0,"id":"lab","idle_pct":38.42541070740741,"kind":"machine","lost_units":0,"max_occupancy":3,"processed_units":31,"station":true},{"avg_occupancy":1.323970588074074,"avg_wait_s":186.35712069879517,"blocked_pct":0.0,"bottleneck_index":74.49808961851852,"busy_pct":74.49808961851852,"capacity":6,"down_pct":0.0,"failures":0,"id":"discharge","idle_pct":25.50191038148148,"kind":"machine","lost_units":0,"max_occupancy":5,"processed_units":83,"station":true},{"avg_occupancy":0.0,"avg_wait_s":0.0,"blocked_pct":0.0,"bottleneck_index":0.0,"busy_pct":0.0,"capacity":-1,"down_pct":0.0,"failures":0,"id":"home","idle_pct":100.0,"kind":"sink","lost_units":0,"max_occupancy":0,"processed_units":83,"station":false},{"avg_occupancy":0.0,"avg_wait_s":0.0,"blocked_pct":0.0,"bottleneck_index":0.0,"busy_pct":0.0,"capacity":-1,"down_pct":0.0,"failures":0,"id":"admitted","idle_pct":100.0,"kind":"sink","lost_units":0,"max_occupancy":0,"processed_units":10,"station":false}],"samples":[[120.0,1,0],[240.0,2,0],[360.0,2,0],[480.0,4,0],[600.0,4,0],[720.0,5,0],[840.0,6,0],[960.0,7,0],[1080.0,7,0],[1200.0,8,0],[1320.0,9,0],[1440.0,8,1],[1560.0,8,1],[1680.0,8,1],[1800.0,7,2],[1920.0,7,2],[2040.0,6,3],[2160.0,7,3],[2280.0,6,4],[2400.0,7,4],[2520.0,6,5],[2640.0,7,5],[2760.0,8,5],[2880.0,8,5],[3000.0,9,5],[3120.0,9,5],[3240.0,11,5],[3360.0,11,5],[3480.0,12,5],[3600.0,12,6],[3720.0,13,6],[3840.0,15,6],[3960.0,15,6],[4080.0,14,7],[4200.0,13,8],[4320.0,14,8],[4440.0,13,9],[4560.0,14,9],[4680.0,15,9],[4800.0,15,10],[4920.0,15,10],[5040.0,16,10],[5160.0,16,10],[5280.0,17,11],[5400.0,17,11],[5520.0,16,12],[5640.0,16,12],[5760.0,15,13],[5880.0,14,14],[6000.0,14,15],[6120.0,14,15],[6240.0,13,16],[6360.0,13,16],[6480.0,12,17],[6600.0,12,17],[6720.0,11,18],[6840.0,12,18],[6960.0,11,19],[7080.0,10,20],[7200.0,10,21],[7320.0,10,21],[7440.0,9,22],[7560.0,9,22],[7680.0,8,23],[7800.0,9,23],[7920.0,8,24],[8040.0,8,24],[8160.0,7,25],[8280.0,7,25],[8400.0,6,26],[8520.0,5,27],[8640.0,5,27],[8760.0,5,27],[8880.0,4,28],[9000.0,4,28],[9120.0,4,29],[9240.0,5,29],[9360.0,5,29],[9480.0,6,29],[9600.0,7,29],[9720.0,8,29],[9840.0,8,29],[9960.0,7,30],[10080.0,8,30],[10200.0,8,30],[10320.0,8,31],[10440.0,9,31],[10560.0,10,31],[10680.0,10,31],[10800.0,10,32],[10920.0,10,32],[11040.0,9,33],[11160.0,8,34],[11280.0,8,34],[11400.0,8,34],[11520.0,8,34],[11640.0,7,35],[11760.0,7,35],[11880.0,7,35],[12000.0,7,35],[12120.0,7,36],[12240.0,6,37],[12360.0,6,37],[12480.0,5,38],[12600.0,5,38],[12720.0,5,38],[12840.0,5,38],[12960.0,6,38],[13080.0,7,39],[13200.0,7,39],[13320.0,6,40],[13440.0,6,41],[13560.0,6,41],[13680.0,6,41],[13800.0,7,41],[13920.0,8,41],[14040.0,8,41],[14160.0,8,41],[14280.0,8,41],[14400.0,8,41],[14520.0,9,41],[14640.0,9,41],[14760.0,8,42],[14880.0,9,42],[15000.0,9,43],[15120.0,11,43],[15240.0,12,43],[15360.0,11,44],[15480.0,11,44],[15600.0,10,45],[15720.0,10,45],[15840.0,10,45],[15960.0,10,46],[16080.0,11,46],[16200.0,11,47],[16320.0,11,47],[16440.0,11,48],[16560.0,12,49],[16680.0,12,49],[16800.0,12,49],[16920.0,12,49],[17040.0,12,50],[17160.0,14,50],[17280.0,14,51],[17400.0,15,51],[17520.0,16,51],[17640.0,18,51],[17760.0,18,51],[17880.0,18,51],[18000.0,17,52],[18120.0,18,52],[18240.0,18,53],[18360.0,17,54],[18480.0,17,55],[18600.0,17,55],[18720.0,16,56],[18840.0,16,56],[18960.0,15,57],[19080.0,15,57],[19200.0,16,57],[19320.0,17,57],[19440.0,17,57],[19560.0,18,58],[19680.0,19,58],[19800.0,19,59],[19920.0,18,61],[20040.0,19,61],[20160.0,19,61],[20280.0,20,61],[20400.0,20,62],[20520.0,20,62],[20640.0,20,62],[20760.0,19,63],[20880.0,18,64],[21000.0,18,64],[21120.0,19,64],[21240.0,18,65],[21360.0,17,66],[21480.0,17,66],[21600.0,18,66],[21720.0,18,66],[21840.0,18,67],[21960.0,19,67],[22080.0,18,68],[22200.0,18,68],[22320.0,17,69],[22440.0,18,69],[22560.0,17,70],[22680.0,19,70],[22800.0,18,71],[22920.0,19,71],[23040.0,19,72],[23160.0,19,72],[23280.0,18,73],[23400.0,18,74],[23520.0,17,75],[23640.0,19,75],[23760.0,19,76],[23880.0,18,77],[24000.0,19,77],[24120.0,19,78],[24240.0,19,78],[24360.0,20,78],[24480.0,19,79],[24600.0,19,79],[24720.0,18,80],[24840.0,20,80],[24960.0,19,81],[25080.0,18,82],[25200.0,17,83],[25320.0,17,83],[25440.0,18,83],[25560.0,20,83],[25680.0,21,84],[25800.0,21,85],[25920.0,21,85],[26040.0,21,85],[26160.0,20,86],[26280.0,20,86],[26400.0,18,88],[26520.0,18,88],[26640.0,18,89],[26760.0,18,89],[26880.0,19,89],[27000.0,21,89],[27120.0,21,90],[27240.0,21,90],[27360.0,22,90],[27480.0,22,91],[27600.0,21,92],[27720.0,20,93],[27840.0,21,93],[27960.0,21,93],[28080.0,23,93],[28200.0,24,93],[28320.0,23,94],[28440.0,23,94],[28560.0,23,95],[28680.0,23,95]],"scrapped":0,"sources_blocked_pct":0.0,"uph":12.4,"warnings":[],"window_s":27000.0,"wip_end":24},"trace":{"events":[[47343,2,0,1,1],[47343,1,1,1,0],[47343,1,1,0,0],[47343,0,1,1,0],[149695,2,0,1,1],[149695,1,1,1,0],[267840,2,1,3,1],[267840,1,3,1,0],[267840,1,3,0,0],[267840,0,3,1,0],[267840,0,1,0,0],[267840,1,1,0,0],[267840,0,1,1,0],[364590,2,0,1,1],[364590,1,1,1,0],[445797,2,1,3,1],[445797,1,3,1,0],[445797,0,1,0,0],[445797,1,1,0,0],[445797,0,1,1,0],[446255,2,0,1,2],[446255,1,1,1,0],[641252,2,1,4,1],[641252,1,4,1,0],[641252,1,4,0,0],[641252,0,4,1,0],[641252,0,1,0,0],[641252,1,1,0,0],[641252,0,1,1,0],[684855,2,0,1,1],[684855,1,1,1,0],[755507,2,1,4,2],[755507,1,4,1,0],[755507,0,1,0,0],[755507,1,1,0,0],[755507,0,1,1,0],[826396,2,0,1,2],[826396,1,1,1,0],[945938,2,0,1,0],[945938,1,1,2,0],[950864,2,1,5,1],[950864,1,5,1,0],[950864,1,5,0,0],[950864,0,5,1,0],[950864,0,1,0,0],[950864,1,1,1,0],[950864,0,1,1,0],[1118686,2,0,1,1],[1118686,1,1,2,0],[1147879,2,1,2,0],[1147879,1,2,1,0],[1147879,1,2,0,0],[1147879,0,2,1,0],[1147879,0,1,0,0],[1147879,1,1,1,0],[1147879,0,1,1,0],[1161871,2,3,8,1],[1161871,1,8,1,0],[1161871,1,8,0,0],[1161871,0,8,1,0],[1161871,0,3,0,0],[1161871,1,3,0,0],[1161871,0,3,1,0],[1235236,2,0,1,2],[1235236,1,1,2,0],[1292851,2,1,3,2],[1292851,1,3,1,0],[1292851,0,1,0,0],[1292851,1,1,1,0],[1292851,0,1,1,0],[1383798,2,8,9,1],[1383798,0,8,0,0],[1516678,2,1,5,2],[1516678,1,5,1,0],[1516678,0,1,0,0],[1516678,1,1,0,0],[1516678,0,1,1,0],[1690535,2,2,10,0],[1690535,0,2,0,0],[1706386,2,3,8,1],[1706386,1,8,1,0],[1706386,1,8,0,0],[1706386,0,8,1,0],[1706386,0,3,0,0],[1706386,1,3,0,0],[1706386,0,3,1,0],[1729352,2,1,3,1],[1729352,1,3,1,0],[1729352,0,1,0,0],[1825763,2,4,7,1],[1825763,1,7,1,0],[1825763,1,7,0,0],[1825763,0,7,1,0],[1825763,0,4,0,0],[1825763,1,4,0,0],[1825763,0,4,1,0],[1847215,2,7,8,1],[1847215,1,8,1,0],[1847215,0,7,0,0],[1927734,2,8,9,1],[1927734,0,8,0,0],[1927734,1,8,0,0],[1927734,0,8,1,0],[2043659,2,5,8,1],[2043659,1,8,1,0],[2043659,0,5,0,0],[2043659,1,5,0,0],[2043659,0,5,1,0],[2080825,2,0,1,2],[2080825,1,1,1,0],[2080825,1,1,0,0],[2080825,0,1,1,0],[2175345,2,8,9,1],[2175345,0,8,0,0],[2175345,1,8,0,0],[2175345,0,8,1,0],[2302607,2,1,4,2],[2302607,1,4,1,0],[2302607,0,1,0,0],[2339918,2,0,1,0],[2339918,1,1,1,0],[2339918,1,1,0,0],[2339918,0,1,1,0],[2466457,2,1,2,0],[2466457,1,2,1,0],[2466457,1,2,0,0],[2466457,0,2,1,0],[2466457,0,1,0,0],[2493065,2,8,9,1],[2493065,0,8,0,0],[2580153,2,0,1,1],[2580153,1,1,1,0],[2580153,1,1,0,0],[2580153,0,1,1,0],[2643390,2,0,1,1],[2643390,1,1,1,0],[2737183,2,1,5,1],[2737183,1,5,1,0],[2737183,0,1,0,0],[2737183,1,1,0,0],[2737183,0,1,1,0],[2886327,2,0,1,1],[2886327,1,1,1,0],[2937055,2,1,6,1],[2937055,1,6,1,0],[2937055,1,6,0,0],[2937055,0,6,1,0],[2937055,0,1,0,0],[2937055,1,1,0,0],[2937055,0,1,1,0],[3122370,2,0,1,2],[3122370,1,1,1,0],[3128985,2,0,1,1],[3128985,1,1,2,0],[3144414,2,1,6,1],[3144414,1,6,1,0],[3144414,0,1,0,0],[3144414,1,1,1,0],[3144414,0,1,1,0],[3353576,2,4,8,2],[3353576,1,8,1,0],[3353576,1,8,0,0],[3353576,0,8,1,0],[3353576,0,4,0,0],[3353576,1,4,0,0],[3353576,0,4,1,0],[3381225,2,0,1,0],[3381225,1,1,2,0],[3388681,2,1,4,2],[3388681,1,4,1,0],[3388681,0,1,0,0],[3388681,1,1,1,0],[3388681,0,1,1,0],[3483345,2,0,1,1],[3483345,1,1,2,0],[3573163,2,1,2,0],[3573163,1,2,1,0],[3573163,0,1,0,0],[3573163,1,1,1,0],[3573163,0,1,1,0],[3585239,2,8,9,2],[3585239,0,8,0,0],[3708977,2,0,1,1],[3708977,1,1,2,0],[3730200,2,0,1,2],[3730200,1,1,3,0],[3762258,2,1,3,1],[3762258,1,3,2,0],[3762258,0,1,0,0],[3762258,1,1,2,0],[3762258,0,1,1,0],[3826021,2,0,1,1],[3826021,1,1,3,0],[3887079,2,1,4,2],[3887079,1,4,2,0],[3887079,0,1,0,0],[3887079,1,1,2,0],[3887079,0,1,1,0],[3892417,2,6,8,1],[3892417,1,8,1,0],[3892417,1,8,0,0],[3892417,0,8,1,0],[3892417,0,6,0,0],[3892417,1,6,0,0],[3892417,0,6,1,0],[3959348,2,3,8,2],[3959348,1,8,1,0],[3959348,0,3,0,0],[3959348,1,3,1,0],[3959348,0,3,1,0],[4013998,2,2,10,0],[4013998,0,2,0,0],[4013998,1,2,0,0],[4013998,0,2,1,0],[4047302,2,1,6,1],[4047302,1,6,1,0],[4047302,0,1,0,0],[4047302,1,1,1,0],[4047302,0,1,1,0],[4143074,2,8,9,1],[4143074,0,8,0,0],[4143074,1,8,0,0],[4143074,0,8,1,0],[4193681,2,5,7,2],[4193681,1,7,1,0],[4193681,1,7,0,0],[4193681,0,7,1,0],[4193681,0,5,0,0],[4193681,1,5,0,0],[4193681,0,5,1,0],[4209161,2,1,5,1],[4209161,1,5,1,0],[4209161,0,1,0,0],[4209161,1,1,0,0],[4209161,0,1,1,0],[4283031,2,0,1,2],[4283031,1,1,1,0],[4394865,2,1,3,1],[4394865,1,3,2,0],[4394865,0,1,0,0],[4394865,1,1,0,0],[4394865,0,1,1,0],[4439781,2,8,9,2],[4439781,0,8,0,0],[4484454,2,4,7,2],[4484454,1,7,1,0],[4484454,0,4,0,0],[4484454,1,4,1,0],[4484454,0,4,1,0],[4529990,2,1,4,2],[4529990,1,4,2,0],[4529990,0,1,0,0],[4550941,2,0,1,1],[4550941,1,1,1,0],[4550941,1,1,0,0],[4550941,0,1,1,0],[4572603,2,7,8,2],[4572603,1,8,1,0],[4572603,1,8,0,0],[4572603,0,8,1,0],[4572603,0,7,0,0],[4572603,1,7,0,0],[4572603,0,7,1,0],[4662448,2,0,1,1],[4662448,1,1,1,0],[4698643,2,6,7,1],[4698643,1,7,1,0],[4698643,0,6,0,0],[4698643,1,6,0,0],[4698643,0,6,1,0],[4733106,2,8,9,2],[4733106,0,8,0,0],[4745616,2,0,1,1],[4745616,1,1,2,0],[4827217,2,1,6,1],[4827217,1,6,1,0],[4827217,0,1,0,0],[4827217,1,1,1,0],[4827217,0,1,1,0],[4952794,2,5,8,1],[4952794,1,8,1,0],[4952794,1,8,0,0],[4952794,0,8,1,0],[4952794,0,5,0,0],[4952794,1,5,0,0],[4952794,0,5,1,0],[4989984,2,1,5,1],[4989984,1,5,1,0],[4989984,0,1,0,0],[4989984,1,1,0,0],[4989984,0,1,1,0],[5006714,2,0,1,0],[5006714,1,1,1,0],[5039545,2,3,8,1],[5039545,1,8,1,0],[5039545,0,3,0,0],[5039545,1,3,1,0],[5039545,0,3,1,0],[5170499,2,8,9,1],[5170499,0,8,0,0],[5170499,1,8,0,0],[5170499,0,8,1,0],[5178999,2,0,1,1],[5178999,1,1,2,0],[5189914,2,1,3,1],[5189914,1,3,2,0],[5189914,0,1,0,0],[5189914,1,1,1,0],[5189914,0,1,1,0],[5233781,2,0,1,1],[5233781,1,1,2,0],[5359624,2,1,2,0],[5359624,1,2,1,0],[5359624,0,1,0,0],[5359624,1,1,1,0],[5359624,0,1,1,0],[5407561,2,8,9,1],[5407561,0,8,0,0],[5482187,2,6,8,1],[5482187,1,8,1,0],[5482187,1,8,0,0],[5482187,0,8,1,0],[5482187,0,6,0,0],[5482187,1,6,0,0],[5482187,0,6,1,0],[5499837,2,1,6,1],[5499837,1,6,1,0],[5499837,0,1,0,0],[5499837,1,1,0,0],[5499837,0,1,1,0],[5512895,2,5,7,1],[5512895,1,7,2,0],[5512895,0,5,0,0],[5512895,1,5,0,0],[5512895,0,5,1,0],[5533179,2,7,8,2],[5533179,1,8,1,0],[5533179,0,7,0,0],[5533179,1,7,1,0],[5533179,0,7,1,0],[5585732,2,3,8,1],[5585732,1,8,2,0],[5585732,0,3,0,0],[5585732,1,3,1,0],[5585732,0,3,1,0],[5591682,2,7,8,1],[5591682,1,8,3,0],[5591682,0,7,0,0],[5591682,1,7,0,0],[5591682,0,7,1,0],[5638232,2,1,5,1],[5638232,1,5,1,0],[5638232,0,1,0,0],[5703670,2,7,8,1],[5703670,1,8,4,0],[5703670,0,7,0,0],[5741977,2,2,10,0],[5741977,0,2,0,0],[5741977,1,2,0,0],[5741977,0,2,1,0],[5769114,2,8,9,1],[5769114,0,8,0,0],[5769114,1,8,3,0],[5769114,0,8,1,0],[5959968,2,8,9,2],[5959968,0,8,0,0],[5959968,1,8,2,0],[5959968,0,8,1,0],[5984566,2,0,1,1],[5984566,1,1,1,0],[5984566,1,1,0,0],[5984566,0,1,1,0],[6045960,2,3,8,1],[6045960,1,8,3,0],[6045960,0,3,0,0],[6045960,1,3,0,0],[6045960,0,3,1,0],[6126755,2,8,9,1],[6126755,0,8,0,0],[6126755,1,8,2,0],[6126755,0,8,1,0],[6141127,2,4,8,2],[6141127,1,8,3,0],[6141127,0,4,0,0],[6141127,1,4,1,0],[6141127,0,4,1,0],[6154772,2,1,3,1],[6154772,1,3,1,0],[6154772,0,1,0,0],[6318564,2,5,7,1],[6318564,1,7,1,0],[6318564,1,7,0,0],[6318564,0,7,1,0],[6318564,0,5,0,0],[6318564,1,5,0,0],[6318564,0,5,1,0],[6348797,2,7,8,1],[6348797,1,8,4,0],[6348797,0,7,0,0],[6471229,2,8,9,1],[6471229,0,8,0,0],[6471229,1,8,3,0],[6471229,0,8,1,0],[6589816,2,6,8,1],[6589816,1,8,4,0],[6589816,0,6,0,0],[6589816,1,6,0,0],[6589816,0,6,1,0],[6660145,2,8,9,1],[6660145,0,8,0,0],[6660145,1,8,3,0],[6660145,0,8,1,0],[6775456,2,0,1,1],[6775456,1,1,1,0],[6775456,1,1,0,0],[6775456,0,1,1,0],[6818542,2,3,8,1],[6818542,1,8,4,0],[6818542,0,3,0,0],[6818542,1,3,0,0],[6818542,0,3,1,0],[6902998,2,8,9,1],[6902998,0,8,0,0],[6902998,1,8,3,0],[6902998,0,8,1,0],[6953336,2,1,3,1],[6953336,1,3,1,0],[6953336,0,1,0,0],[7042850,2,8,9,2],[7042850,0,8,0,0],[7042850,1,8,2,0],[7042850,0,8,1,0],[7101923,2,0,1,1],[7101923,1,1,1,0],[7101923,1,1,0,0],[7101923,0,1,1,0],[7107863,2,2,10,0],[7107863,0,2,0,0],[7156745,2,5,7,1],[7156745,1,7,1,0],[7156745,1,7,0,0],[7156745,0,7,1,0],[7156745,0,5,0,0],[7305359,2,1,5,1],[7305359,1,5,1,0],[7305359,1,5,0,0],[7305359,0,5,1,0],[7305359,0,1,0,0],[7322970,2,8,9,1],[7322970,0,8,0,0],[7322970,1,8,1,0],[7322970,0,8,1,0],[7383533,2,6,8,1],[7383533,1,8,2,0],[7383533,0,6,0,0],[7518588,2,3,7,1],[7518588,1,7,1,0],[7518588,0,3,0,0],[7518588,1,3,0,0],[7518588,0,3,1,0],[7613683,2,8,9,1],[7613683,0,8,0,0],[7613683,1,8,1,0],[7613683,0,8,1,0],[7677633,2,4,7,2],[7677633,1,7,2,0],[7677633,0,4,0,0],[7677633,1,4,0,0],[7677633,0,4,1,0],[7717163,2,7,8,1],[7717163,1,8,2,0],[7717163,0,7,0,0],[7717163,1,7,1,0],[7717163,0,7,1,0],[7782254,2,0,1,1],[7782254,1,1,1,0],[7782254,1,1,0,0],[7782254,0,1,1,0],[7821341,2,7,8,1],[7821341,1,8,3,0],[7821341,0,7,0,0],[7821341,1,7,0,0],[7821341,0,7,1,0],[7912896,2,8,9,1],[7912896,0,8,0,0],[7912896,1,8,2,0],[7912896,0,8,1,0],[7964622,2,1,3,1],[7964622,1,3,1,0],[7964622,0,1,0,0],[8094905,2,8,9,1],[8094905,0,8,0,0],[8094905,1,8,1,0],[8094905,0,8,1,0],[8167595,2,3,7,1],[8167595,1,7,1,0],[8167595,0,3,0,0],[8167595,1,3,0,0],[8167595,0,3,1,0],[8261935,2,5,8,1],[8261935,1,8,2,0],[8261935,0,5,0,0],[8315636,2,8,9,1],[8315636,0,8,0,0],[8315636,1,8,1,0],[8315636,0,8,1,0],[8507957,2,8,9,1],[8507957,0,8,0,0],[8507957,1,8,0,0],[8507957,0,8,1,0],[8853670,2,8,9,1],[8853670,0,8,0,0],[8894399,2,7,8,2],[8894399,1,8,1,0],[8894399,1,8,0,0],[8894399,0,8,1,0],[8894399,0,7,0,0],[8894399,1,7,0,0],[8894399,0,7,1,0],[8994765,2,3,7,1],[8994765,1,7,1,0],[8994765,0,3,0,0],[9045965,2,8,9,2],[9045965,0,8,0,0],[9093957,2,0,1,1],[9093957,1,1,1,0],[9093957,1,1,0,0],[9093957,0,1,1,0],[9121313,2,0,1,2],[9121313,1,1,1,0],[9197849,2,1,3,1],[9197849,1,3,1,0],[9197849,1,3,0,0],[9197849,0,3,1,0],[9197849,0,1,0,0],[9197849,1,1,0,0],[9197849,0,1,1,0],[9414222,2,0,1,1],[9414222,1,1,1,0],[9424523,2,1,3,2],[9424523,1,3,1,0],[9424523,0,1,0,0],[9424523,1,1,0,0],[9424523,0,1,1,0],[9527411,2,0,1,2],[9527411,1,1,1,0],[9551691,2,1,4,1],[9551691,1,4,1,0],[9551691,0,1,0,0],[9551691,1,1,0,0],[9551691,0,1,1,0],[9565289,2,4,8,2],[9565289,1,8,1,0],[9565289,1,8,0,0],[9565289,0,8,1,0],[9565289,0,4,0,0],[9565289,1,4,0,0],[9565289,0,4,1,0],[9701916,2,0,1,0],[9701916,1,1,1,0],[9725216,2,1,4,2],[9725216,1,4,1,0],[9725216,0,1,0,0],[9725216,1,1,0,0],[9725216,0,1,1,0],[9858549,2,8,9,2],[9858549,0,8,0,0],[9873045,2,1,2,0],[9873045,1,2,1,0],[9873045,1,2,0,0],[9873045,0,2,1,0],[9873045,0,1,0,0],[10008970,2,7,8,1],[10008970,1,8,1,0],[10008970,1,8,0,0],[10008970,0,8,1,0],[10008970,0,7,0,0],[10008970,1,7,0,0],[10008970,0,7,1,0],[10038278,2,0,1,2],[10038278,1,1,1,0],[10038278,1,1,0,0],[10038278,0,1,1,0],[10243408,2,1,5,2],[10243408,1,5,1,0],[10243408,1,5,0,0],[10243408,0,5,1,0],[10243408,0,1,0,0],[10319392,2,8,9,1],[10319392,0,8,0,0],[10319872,2,0,1,1],[10319872,1,1,1,0],[10319872,1,1,0,0],[10319872,0,1,1,0],[10432575,2,0,1,2],[10432575,1,1,1,0],[10443857,2,3,7,1],[10443857,1,7,1,0],[10443857,0,3,0,0],[10443857,1,3,0,0],[10443857,0,3,1,0],[10520771,2,1,3,1],[10520771,1,3,1,0],[10520771,0,1,0,0],[10520771,1,1,0,0],[10520771,0,1,1,0],[10526118,2,0,1,2],[10526118,1,1,1,0],[10586261,2,4,8,1],[10586261,1,8,1,0],[10586261,1,8,0,0],[10586261,0,8,1,0],[10586261,0,4,0,0],[10586261,1,4,0,0],[10586261,0,4,1,0],[10687944,2,7,8,1],[10687944,1,8,1,0],[10687944,0,7,0,0],[10687944,1,7,0,0],[10687944,0,7,1,0],[10766850,2,8,9,1],[10766850,0,8,0,0],[10766850,1,8,0,0],[10766850,0,8,1,0],[10780729,2,0,1,1],[10780729,1,1,2,0],[10794337,2,1,4,2],[10794337,1,4,1,0],[10794337,0,1,0,0],[10794337,1,1,1,0],[10794337,0,1,1,0],[10811632,2,7,8,1],[10811632,1,8,1,0],[10811632,0,7,0,0],[10942617,2,1,5,2],[10942617,1,5,1,0],[10942617,0,1,0,0],[10942617,1,1,0,0],[10942617,0,1,1,0],[10979634,2,8,9,1],[10979634,0,8,0,0],[10979634,1,8,0,0],[10979634,0,8,1,0],[11050293,2,8,9,1],[11050293,0,8,0,0],[11161343,2,1,6,1],[11161343,1,6,1,0],[11161343,1,6,0,0],[11161343,0,6,1,0],[11161343,0,1,0,0],[11608360,2,2,10,0],[11608360,0,2,0,0],[11752792,2,4,8,2],[11752792,1,8,1,0],[11752792,1,8,0,0],[11752792,0,8,1,0],[11752792,0,4,0,0],[11752792,1,4,0,0],[11752792,0,4,1,0],[12026137,2,6,7,1],[12026137,1,7,1,0],[12026137,1,7,0,0],[12026137,0,7,1,0],[12026137,0,6,0,0],[12053886,2,5,8,2],[12053886,1,8,1,0],[12053886,0,5,0,0],[12053886,1,5,0,0],[12053886,0,5,1,0],[12067285,2,8,9,2],[12067285,0,8,0,0],[12067285,1,8,0,0],[12067285,0,8,1,0],[12104219,2,0,1,2],[12104219,1,1,1,0],[12104219,1,1,0,0],[12104219,0,1,1,0],[12148568,2,3,8,2],[12148568,1,8,1,0],[12148568,0,3,0,0],[12148568,1,3,0,0],[12148568,0,3,1,0],[12224233,2,8,9,2],[12224233,0,8,0,0],[12224233,1,8,0,0],[12224233,0,8,1,0],[12274098,2,1,3,2],[12274098,1,3,1,0],[12274098,0,1,0,0],[12397060,2,8,9,2],[12397060,0,8,0,0],[12801259,2,3,8,1],[12801259,1,8,1,0],[12801259,1,8,0,0],[12801259,0,8,1,0],[12801259,0,3,0,0],[12801259,1,3,0,0],[12801259,0,3,1,0],[12884592,2,0,1,2],[12884592,1,1,1,0],[12884592,1,1,0,0],[12884592,0,1,1,0],[13003212,2,0,1,1],[13003212,1,1,1,0],[13046730,2,8,9,1],[13046730,0,8,0,0],[13072905,2,0,1,2],[13072905,1,1,2,0],[13085342,2,1,3,2],[13085342,1,3,1,0],[13085342,0,1,0,0],[13085342,1,1,1,0],[13085342,0,1,1,0],[13092812,2,4,8,2],[13092812,1,8,1,0],[13092812,1,8,0,0],[13092812,0,8,1,0],[13092812,0,4,0,0],[13185595,2,7,8,1],[13185595,1,8,1,0],[13185595,0,7,0,0],[13200413,2,1,4,2],[13200413,1,4,1,0],[13200413,1,4,0,0],[13200413,0,4,1,0],[13200413,0,1,0,0],[13200413,1,1,0,0],[13200413,0,1,1,0],[13235156,2,8,9,2],[13235156,0,8,0,0],[13235156,1,8,0,0],[13235156,0,8,1,0],[13395353,2,1,4,1],[13395353,1,4,1,0],[13395353,0,1,0,0],[13397058,2,8,9,1],[13397058,0,8,0,0],[13398137,2,0,1,2],[13398137,1,1,1,0],[13398137,1,1,0,0],[13398137,0,1,1,0],[13571549,2,1,5,2],[13571549,1,5,1,0],[13571549,0,1,0,0],[13626945,2,5,7,2],[13626945,1,7,1,0],[13626945,1,7,0,0],[13626945,0,7,1,0],[13626945,0,5,0,0],[13626945,1,5,0,0],[13626945,0,5,1,0],[13766791,2,0,1,2],[13766791,1,1,1,0],[13766791,1,1,0,0],[13766791,0,1,1,0],[13919091,2,0,1,1],[13919091,1,1,1,0],[13925901,2,1,5,2],[13925901,1,5,1,0],[13925901,0,1,0,0],[13925901,1,1,0,0],[13925901,0,1,1,0],[14151436,2,1,6,1],[14151436,1,6,1,0],[14151436,1,6,0,0],[14151436,0,6,1,0],[14151436,0,1,0,0],[14258416,2,7,8,2],[14258416,1,8,1,0],[14258416,1,8,0,0],[14258416,0,8,1,0],[14258416,0,7,0,0],[14364541,2,4,8,2],[14364541,1,8,1,0],[14364541,0,4,0,0],[14364541,1,4,0,0],[14364541,0,4,1,0],[14507502,2,0,1,0],[14507502,1,1,1,0],[14507502,1,1,0,0],[14507502,0,1,1,0],[14684319,2,8,9,2],[14684319,0,8,0,0],[14684319,1,8,0,0],[14684319,0,8,1,0],[14696885,2,3,7,2],[14696885,1,7,1,0],[14696885,1,7,0,0],[14696885,0,7,1,0],[14696885,0,3,0,0],[14696885,1,3,0,0],[14696885,0,3,1,0],[14721843,2,1,2,0],[14721843,1,2,1,0],[14721843,1,2,0,0],[14721843,0,2,1,0],[14721843,0,1,0,0],[14794378,2,0,1,1],[14794378,1,1,1,0],[14794378,1,1,0,0],[14794378,0,1,1,0],[14897204,2,0,1,1],[14897204,1,1,1,0],[14936859,2,8,9,2],[14936859,0,8,0,0],[14998283,2,1,3,1],[14998283,1,3,1,0],[14998283,0,1,0,0],[14998283,1,1,0,0],[14998283,0,1,1,0],[15013018,2,6,7,1],[15013018,1,7,1,0],[15013018,0,6,0,0],[15031312,2,4,8,1],[15031312,1,8,1,0],[15031312,1,8,0,0],[15031312,0,8,1,0],[15031312,0,4,0,0],[15054320,2,0,1,1],[15054320,1,1,1,0],[15089740,2,0,1,2],[15089740,1,1,2,0],[15158293,2,1,4,1],[15158293,1,4,1,0],[15158293,1,4,0,0],[15158293,0,4,1,0],[15158293,0,1,0,0],[15158293,1,1,1,0],[15158293,0,1,1,0],[15173294,2,0,1,1],[15173294,1,1,2,0],[15296808,2,8,9,1],[15296808,0,8,0,0],[15341735,2,5,8,2],[15341735,1,8,1,0],[15341735,1,8,0,0],[15341735,0,8,1,0],[15341735,0,5,0,0],[15341735,1,5,0,0],[15341735,0,5,1,0],[15380083,2,1,4,2],[15380083,1,4,1,0],[15380083,0,1,0,0],[15380083,1,1,1,0],[15380083,0,1,1,0],[15532450,2,1,5,1],[15532450,1,5,1,0],[15532450,0,1,0,0],[15532450,1,1,0,0],[15532450,0,1,1,0],[15534054,2,7,8,2],[15534054,1,8,1,0],[15534054,0,7,0,0],[15534054,1,7,0,0],[15534054,0,7,1,0],[15558668,2,8,9,2],[15558668,0,8,0,0],[15558668,1,8,0,0],[15558668,0,8,1,0],[15617455,2,7,8,1],[15617455,1,8,1,0],[15617455,0,7,0,0],[15729835,2,1,6,1],[15729835,1,6,1,0],[15729835,1,6,0,0],[15729835,0,6,1,0],[15729835,0,1,0,0],[15840360,2,8,9,2],[15840360,0,8,0,0],[15840360,1,8,0,0],[15840360,0,8,1,0],[15863603,2,0,1,1],[15863603,1,1,1,0],[15863603,1,1,0,0],[15863603,0,1,1,0],[16049954,2,1,6,1],[16049954,1,6,1,0],[16049954,0,1,0,0],[16063090,2,0,1,1],[16063090,1,1,1,0],[16063090,1,1,0,0],[16063090,0,1,1,0],[16076166,2,3,7,2],[16076166,1,7,1,0],[16076166,1,7,0,0],[16076166,0,7,1,0],[16076166,0,3,0,0],[16076166,1,3,0,0],[16076166,0,3,1,0],[16085836,2,8,9,1],[16085836,0,8,0,0],[16090093,2,0,1,2],[16090093,1,1,1,0],[16153518,2,4,8,1],[16153518,1,8,1,0],[16153518,1,8,0,0],[16153518,0,8,1,0],[16153518,0,4,0,0],[16153518,1,4,0,0],[16153518,0,4,1,0],[16262281,2,1,3,1],[16262281,1,3,1,0],[16262281,0,1,0,0],[16262281,1,1,0,0],[16262281,0,1,1,0],[16375053,2,2,10,0],[16375053,0,2,0,0],[16389005,2,0,1,1],[16389005,1,1,1,0],[16418822,2,1,4,2],[16418822,1,4,1,0],[16418822,0,1,0,0],[16418822,1,1,0,0],[16418822,0,1,1,0],[16449982,2,6,7,1],[16449982,1,7,1,0],[16449982,0,6,0,0],[16449982,1,6,0,0],[16449982,0,6,1,0],[16488256,2,8,9,1],[16488256,0,8,0,0],[16514488,2,0,1,0],[16514488,1,1,1,0],[16547226,2,0,1,2],[16547226,1,1,2,0],[16570629,2,1,6,1],[16570629,1,6,1,0],[16570629,0,1,0,0],[16570629,1,1,1,0],[16570629,0,1,1,0],[16746124,2,5,8,2],[16746124,1,8,1,0],[16746124,1,8,0,0],[16746124,0,8,1,0],[16746124,0,5,0,0],[16746124,1,5,0,0],[16746124,0,5,1,0],[16797573,2,1,2,0],[16797573,1,2,1,0],[16797573,1,2,0,0],[16797573,0,2,1,0],[16797573,0,1,0,0],[16797573,1,1,0,0],[16797573,0,1,1,0],[16968879,2,8,9,2],[16968879,0,8,0,0],[16978635,2,1,5,2],[16978635,1,5,1,0],[16978635,0,1,0,0],[17002345,2,3,8,1],[17002345,1,8,1,0],[17002345,1,8,0,0],[17002345,0,8,1,0],[17002345,0,3,0,0],[17002345,1,3,0,0],[17002345,0,3,1,0],[17024708,2,0,1,1],[17024708,1,1,1,0],[17024708,1,1,0,0],[17024708,0,1,1,0],[17055676,2,0,1,2],[17055676,1,1,1,0],[17127926,2,0,1,1],[17127926,1,1,2,0],[17130828,2,6,7,1],[17130828,1,7,2,0],[17130828,0,6,0,0],[17130828,1,6,0,0],[17130828,0,6,1,0],[17185160,2,1,3,1],[17185160,1,3,1,0],[17185160,0,1,0,0],[17185160,1,1,1,0],[17185160,0,1,1,0],[17213240,2,0,1,1],[17213240,1,1,2,0],[17223864,2,8,9,1],[17223864,0,8,0,0],[17325805,2,0,1,2],[17325805,1,1,3,0],[17390785,2,1,6,2],[17390785,1,6,1,0],[17390785,0,1,0,0],[17390785,1,1,2,0],[17390785,0,1,1,0],[17473938,2,0,1,2],[17473938,1,1,3,0],[17531620,2,0,1,1],[17531620,1,1,4,0],[17583383,2,1,3,2],[17583383,1,3,2,0],[17583383,0,1,0,0],[17583383,1,1,3,0],[17583383,0,1,1,0],[17620007,2,7,8,2],[17620007,1,8,1,0],[17620007,1,8,0,0],[17620007,0,8,1,0],[17620007,0,7,0,0],[17620007,1,7,1,0],[17620007,0,7,1,0],[17620979,2,5,8,1],[17620979,1,8,1,0],[17620979,0,5,0,0],[17620979,1,5,0,0],[17620979,0,5,1,0],[17624385,2,0,1,2],[17624385,1,1,4,0],[17743490,2,1,5,2],[17743490,1,5,1,0],[17743490,0,1,0,0],[17743490,1,1,3,0],[17743490,0,1,1,0],[17907043,2,7,8,1],[17907043,1,8,2,0],[17907043,0,7,0,0],[17907043,1,7,0,0],[17907043,0,7,1,0],[17916069,2,4,8,2],[17916069,1,8,3,0],[17916069,0,4,0,0],[17916069,1,4,0,0],[17916069,0,4,1,0],[17920311,2,1,4,2],[17920311,1,4,1,0],[17920311,0,1,0,0],[17920311,1,1,2,0],[17920311,0,1,1,0],[17944823,2,8,9,2],[17944823,0,8,0,0],[17944823,1,8,2,0],[17944823,0,8,1,0],[18045354,2,3,8,1],[18045354,1,8,3,0],[18045354,0,3,0,0],[18045354,1,3,1,0],[18045354,0,3,1,0],[18065830,2,0,1,1],[18065830,1,1,3,0],[18084321,2,1,3,1],[18084321,1,3,2,0],[18084321,0,1,0,0],[18084321,1,1,2,0],[18084321,0,1,1,0],[18204010,2,8,9,1],[18204010,0,8,0,0],[18204010,1,8,2,0],[18204010,0,8,1,0],[18238208,2,0,1,2],[18238208,1,1,3,0],[18281610,2,6,7,1],[18281610,1,7,1,0],[18281610,0,6,0,0],[18281610,1,6,0,0],[18281610,0,6,1,0],[18301729,2,1,6,1],[18301729,1,6,1,0],[18301729,0,1,0,0],[18301729,1,1,2,0],[18301729,0,1,1,0],[18332163,2,2,10,0],[18332163,0,2,0,0],[18386673,2,8,9,1],[18386673,0,8,0,0],[18386673,1,8,1,0],[18386673,0,8,1,0],[18471661,2,0,1,0],[18471661,1,1,3,0],[18500738,2,1,4,2],[18500738,1,4,2,0],[18500738,0,1,0,0],[18500738,1,1,2,0],[18500738,0,1,1,0],[18613077,2,8,9,2],[18613077,0,8,0,0],[18613077,1,8,0,0],[18613077,0,8,1,0],[18622392,2,1,2,0],[18622392,1,2,1,0],[18622392,1,2,0,0],[18622392,0,2,1,0],[18622392,0,1,0,0],[18622392,1,1,1,0],[18622392,0,1,1,0],[18768464,2,1,5,1],[18768464,1,5,2,0],[18768464,0,1,0,0],[18768464,1,1,0,0],[18768464,0,1,1,0],[18935321,2,8,9,1],[18935321,0,8,0,0],[18983472,2,1,6,1],[18983472,1,6,2,0],[18983472,0,1,0,0],[19156590,2,0,1,1],[19156590,1,1,1,0],[19156590,1,1,0,0],[19156590,0,1,1,0],[19220703,2,0,1,2],[19220703,1,1,1,0],[19263152,2,3,8,2],[19263152,1,8,1,0],[19263152,1,8,0,0],[19263152,0,8,1,0],[19263152,0,3,0,0],[19263152,1,3,1,0],[19263152,0,3,1,0],[19398427,2,1,3,1],[19398427,1,3,2,0],[19398427,0,1,0,0],[19398427,1,1,0,0],[19398427,0,1,1,0],[19399061,2,5,8,2],[19399061,1,8,1,0],[19399061,0,5,0,0],[19399061,1,5,1,0],[19399061,0,5,1,0],[19467080,2,0,1,2],[19467080,1,1,1,0],[19495275,2,0,1,2],[19495275,1,1,2,0],[19514143,2,8,9,2],[19514143,0,8,0,0],[19514143,1,8,0,0],[19514143,0,8,1,0],[19565249,2,4,8,2],[19565249,1,8,1,0],[19565249,0,4,0,0],[19565249,1,4,1,0],[19565249,0,4,1,0],[19570406,2,0,1,2],[19570406,1,1,3,0],[19603488,2,1,4,2],[19603488,1,4,2,0],[19603488,0,1,0,0],[19603488,1,1,2,0],[19603488,0,1,1,0],[19751281,2,0,1,2],[19751281,1,1,3,0],[19798737,2,8,9,2],[19798737,0,8,0,0],[19798737,1,8,0,0],[19798737,0,8,1,0],[19835247,2,0,1,1],[19835247,1,1,4,0],[19852181,2,1,5,2],[19852181,1,5,2,0],[19852181,0,1,0,0],[19852181,1,1,3,0],[19852181,0,1,1,0],[19894094,2,8,9,2],[19894094,0,8,0,0],[19901462,2,2,10,0],[19901462,0,2,0,0],[19920903,2,6,7,2],[19920903,1,7,2,0],[19920903,0,6,0,0],[19920903,1,6,1,0],[19920903,0,6,1,0],[19957539,2,0,1,2],[19957539,1,1,4,0],[20070452,2,1,6,2],[20070452,1,6,2,0],[20070452,0,1,0,0],[20070452,1,1,3,0],[20070452,0,1,1,0],[20131052,2,7,8,1],[20131052,1,8,1,0],[20131052,1,8,0,0],[20131052,0,8,1,0],[20131052,0,7,0,0],[20131052,1,7,1,0],[20131052,0,7,1,0],[20166846,2,0,1,2],[20166846,1,1,4,0],[20266154,2,3,8,1],[20266154,1,8,1,0],[20266154,0,3,0,0],[20266154,1,3,1,0],[20266154,0,3,1,0],[20272666,2,1,3,2],[20272666,1,3,2,0],[20272666,0,1,0,0],[20272666,1,1,3,0],[20272666,0,1,1,0],[20380301,2,1,3,2],[20380301,1,3,3,0],[20380301,0,1,0,0],[20380301,1,1,2,0],[20380301,0,1,1,0],[20395998,2,8,9,1],[20395998,0,8,0,0],[20395998,1,8,0,0],[20395998,0,8,1,0],[20397791,2,0,1,1],[20397791,1,1,3,0],[20512030,2,1,4,2],[20512030,1,4,3,0],[20512030,0,1,0,0],[20512030,1,1,2,0],[20512030,0,1,1,0],[20581777,2,5,8,2],[20581777,1,8,1,0],[20581777,0,5,0,0],[20581777,1,5,1,0],[20581777,0,5,1,0],[20657527,2,1,5,2],[20657527,1,5,2,0],[20657527,0,1,0,0],[20657527,1,1,1,0],[20657527,0,1,1,0],[20674515,2,8,9,1],[20674515,0,8,0,0],[20674515,1,8,0,0],[20674515,0,8,1,0],[20769441,2,3,7,1],[20769441,1,7,2,0],[20769441,0,3,0,0],[20769441,1,3,2,0],[20769441,0,3,1,0],[20810283,2,1,3,1],[20810283,1,3,3,0],[20810283,0,1,0,0],[20810283,1,1,0,0],[20810283,0,1,1,0],[20819673,2,6,8,1],[20819673,1,8,1,0],[20819673,0,6,0,0],[20819673,1,6,1,0],[20819673,0,6,1,0],[20867605,2,8,9,2],[20867605,0,8,0,0],[20867605,1,8,0,0],[20867605,0,8,1,0],[20885422,2,4,8,2],[20885422,1,8,1,0],[20885422,0,4,0,0],[20885422,1,4,2,0],[20885422,0,4,1,0],[21025976,2,1,6,1],[21025976,1,6,2,0],[21025976,0,1,0,0],[21119124,2,0,1,2],[21119124,1,1,1,0],[21119124,1,1,0,0],[21119124,0,1,1,0],[21157001,2,8,9,1],[21157001,0,8,0,0],[21157001,1,8,0,0],[21157001,0,8,1,0],[21289285,2,1,4,2],[21289285,1,4,3,0],[21289285,0,1,0,0],[21320562,2,8,9,2],[21320562,0,8,0,0],[21514779,2,7,8,1],[21514779,1,8,1,0],[21514779,1,8,0,0],[21514779,0,8,1,0],[21514779,0,7,0,0],[21514779,1,7,1,0],[21514779,0,7,1,0],[21570454,2,0,1,0],[21570454,1,1,1,0],[21570454,1,1,0,0],[21570454,0,1,1,0],[21723257,2,3,8,2],[21723257,1,8,1,0],[21723257,0,3,0,0],[21723257,1,3,2,0],[21723257,0,3,1,0],[21734801,2,0,1,1],[21734801,1,1,1,0],[21784703,2,7,8,2],[21784703,1,8,2,0],[21784703,0,7,0,0],[21784703,1,7,0,0],[21784703,0,7,1,0],[21803204,2,1,2,0],[21803204,1,2,1,0],[21803204,1,2,0,0],[21803204,0,2,1,0],[21803204,0,1,0,0],[21803204,1,1,0,0],[21803204,0,1,1,0],[21835806,2,8,9,1],[21835806,0,8,0,0],[21835806,1,8,1,0],[21835806,0,8,1,0],[21847375,2,0,1,1],[21847375,1,1,1,0],[21905579,2,6,7,2],[21905579,1,7,1,0],[21905579,0,6,0,0],[21905579,1,6,1,0],[21905579,0,6,1,0],[21933912,2,1,6,1],[21933912,1,6,2,0],[21933912,0,1,0,0],[21933912,1,1,0,0],[21933912,0,1,1,0],[21997081,2,8,9,2],[21997081,0,8,0,0],[21997081,1,8,0,0],[21997081,0,8,1,0],[22043749,2,1,3,1],[22043749,1,3,3,0],[22043749,0,1,0,0],[22115623,2,4,8,2],[22115623,1,8,1,0],[22115623,0,4,0,0],[22115623,1,4,2,0],[22115623,0,4,1,0],[22149371,2,7,8,1],[22149371,1,8,2,0],[22149371,0,7,0,0],[22149371,1,7,0,0],[22149371,0,7,1,0],[22257889,2,5,7,2],[22257889,1,7,1,0],[22257889,0,5,0,0],[22257889,1,5,1,0],[22257889,0,5,1,0],[22268596,2,8,9,2],[22268596,0,8,0,0],[22268596,1,8,1,0],[22268596,0,8,1,0],[22436776,2,0,1,2],[22436776,1,1,1,0],[22436776,1,1,0,0],[22436776,0,1,1,0],[22460702,2,8,9,2],[22460702,0,8,0,0],[22460702,1,8,0,0],[22460702,0,8,1,0],[22504496,2,7,8,2],[22504496,1,8,1,0],[22504496,0,7,0,0],[22504496,1,7,0,0],[22504496,0,7,1,0],[22577849,2,0,1,2],[22577849,1,1,1,0],[22611230,2,0,1,1],[22611230,1,1,2,0],[22660026,2,1,5,2],[22660026,1,5,2,0],[22660026,0,1,0,0],[22660026,1,1,1,0],[22660026,0,1,1,0],[22680642,2,6,8,1],[22680642,1,8,2,0],[22680642,0,6,0,0],[22680642,1,6,1,0],[22680642,0,6,1,0],[22731191,2,7,8,2],[22731191,1,8,3,0],[22731191,0,7,0,0],[22735036,2,8,9,1],[22735036,0,8,0,0],[22735036,1,8,2,0],[22735036,0,8,1,0],[22809168,2,1,6,2],[22809168,1,6,2,0],[22809168,0,1,0,0],[22809168,1,1,0,0],[22809168,0,1,1,0],[22814473,2,3,8,2],[22814473,1,8,3,0],[22814473,0,3,0,0],[22814473,1,3,2,0],[22814473,0,3,1,0],[22904570,2,0,1,1],[22904570,1,1,1,0],[22928943,2,0,1,1],[22928943,1,1,2,0],[22949623,2,8,9,2],[22949623,0,8,0,0],[22949623,1,8,2,0],[22949623,0,8,1,0],[22982234,2,1,3,1],[22982234,1,3,3,0],[22982234,0,1,0,0],[22982234,1,1,1,0],[22982234,0,1,1,0],[23169607,2,8,9,1],[23169607,0,8,0,0],[23169607,1,8,1,0],[23169607,0,8,1,0],[23191924,2,1,4,1],[23191924,1,4,3,0],[23191924,0,1,0,0],[23191924,1,1,0,0],[23191924,0,1,1,0],[23303536,2,2,10,0],[23303536,0,2,0,0],[23306728,2,0,1,0],[23306728,1,1,1,0],[23378122,2,1,5,1],[23378122,1,5,3,0],[23378122,0,1,0,0],[23378122,1,1,0,0],[23378122,0,1,1,0],[23413945,2,8,9,2],[23413945,0,8,0,0],[23413945,1,8,0,0],[23413945,0,8,1,0],[23440017,2,3,8,1],[23440017,1,8,1,0],[23440017,0,3,0,0],[23440017,1,3,2,0],[23440017,0,3,1,0],[23527885,2,0,1,1],[23527885,1,1,1,0],[23564604,2,1,2,0],[23564604,1,2,1,0],[23564604,1,2,0,0],[23564604,0,2,1,0],[23564604,0,1,0,0],[23564604,1,1,0,0],[23564604,0,1,1,0],[23586402,2,0,1,0],[23586402,1,1,1,0],[23634483,2,6,8,1],[23634483,1,8,2,0],[23634483,0,6,0,0],[23634483,1,6,1,0],[23634483,0,6,1,0],[23637836,2,4,7,2],[23637836,1,7,1,0],[23637836,1,7,0,0],[23637836,0,7,1,0],[23637836,0,4,0,0],[23637836,1,4,2,0],[23637836,0,4,1,0],[23668425,2,8,9,2],[23668425,0,8,0,0],[23668425,1,8,1,0],[23668425,0,8,1,0],[23691940,2,1,6,1],[23691940,1,6,2,0],[23691940,0,1,0,0],[23691940,1,1,0,0],[23691940,0,1,1,0],[23713553,2,0,1,1],[23713553,1,1,1,0],[23714685,2,7,8,2],[23714685,1,8,2,0],[23714685,0,7,0,0],[23760737,2,5,7,2],[23760737,1,7,1,0],[23760737,1,7,0,0],[23760737,0,7,1,0],[23760737,0,5,0,0],[23760737,1,5,2,0],[23760737,0,5,1,0],[23839022,2,1,2,0],[23839022,1,2,1,0],[23839022,0,1,0,0],[23839022,1,1,0,0],[23839022,0,1,1,0],[23865455,2,8,9,1],[23865455,0,8,0,0],[23865455,1,8,1,0],[23865455,0,8,1,0],[23921351,2,0,1,1],[23921351,1,1,1,0],[24011033,2,0,1,1],[24011033,1,1,2,0],[24038590,2,1,3,1],[24038590,1,3,3,0],[24038590,0,1,0,0],[24038590,1,1,1,0],[24038590,0,1,1,0],[24101297,2,8,9,1],[24101297,0,8,0,0],[24101297,1,8,0,0],[24101297,0,8,1,0],[24244805,2,1,4,1],[24244805,1,4,3,0],[24244805,0,1,0,0],[24244805,1,1,0,0],[24244805,0,1,1,0],[24278818,2,0,1,2],[24278818,1,1,1,0],[24424087,2,7,8,2],[24424087,1,8,1,0],[24424087,0,7,0,0],[24436855,2,8,9,2],[24436855,0,8,0,0],[24436855,1,8,0,0],[24436855,0,8,1,0],[24513176,2,1,5,1],[24513176,1,5,3,0],[24513176,0,1,0,0],[24513176,1,1,0,0],[24513176,0,1,1,0],[24595557,2,3,8,1],[24595557,1,8,1,0],[24595557,0,3,0,0],[24595557,1,3,2,0],[24595557,0,3,1,0],[24675152,2,1,3,2],[24675152,1,3,3,0],[24675152,0,1,0,0],[24684740,2,8,9,2],[24684740,0,8,0,0],[24684740,1,8,0,0],[24684740,0,8,1,0],[24744883,2,0,1,1],[24744883,1,1,1,0],[24744883,1,1,0,0],[24744883,0,1,1,0],[24758487,2,0,1,1],[24758487,1,1,1,0],[24842896,2,5,8,2],[24842896,1,8,1,0],[24842896,0,5,0,0],[24842896,1,5,2,0],[24842896,0,5,1,0],[24897814,2,1,5,1],[24897814,1,5,3,0],[24897814,0,1,0,0],[24897814,1,1,0,0],[24897814,0,1,1,0],[24959329,2,2,10,0],[24959329,0,2,0,0],[24959329,1,2,0,0],[24959329,0,2,1,0],[24988547,2,8,9,1],[24988547,0,8,0,0],[24988547,1,8,0,0],[24988547,0,8,1,0],[25137946,2,1,6,1],[25137946,1,6,3,0],[25137946,0,1,0,0],[25162256,2,8,9,2],[25162256,0,8,0,0],[25291133,2,3,8,1],[25291133,1,8,1,0],[25291133,1,8,0,0],[25291133,0,8,1,0],[25291133,0,3,0,0],[25291133,1,3,2,0],[25291133,0,3,1,0],[25428792,2,0,1,1],[25428792,1,1,1,0],[25428792,1,1,0,0],[25428792,0,1,1,0],[25466020,2,0,1,1],[25466020,1,1,1,0],[25505693,2,6,7,2],[25505693,1,7,1,0],[25505693,1,7,0,0],[25505693,0,7,1,0],[25505693,0,6,0,0],[25505693,1,6,2,0],[25505693,0,6,1,0],[25518193,2,0,1,1],[25518193,1,1,2,0],[25527393,2,7,8,2],[25527393,1,8,1,0],[25527393,0,7,0,0],[25562107,2,8,9,1],[25562107,0,8,0,0],[25562107,1,8,0,0],[25562107,0,8,1,0],[25588284,2,1,3,1],[25588284,1,3,3,0],[25588284,0,1,0,0],[25588284,1,1,1,0],[25588284,0,1,1,0],[25615213,2,0,1,1],[25615213,1,1,2,0],[25668524,2,0,1,1],[25668524,1,1,3,0],[25728170,2,0,1,2],[25728170,1,1,4,0],[25763241,2,8,9,2],[25763241,0,8,0,0],[25789881,2,1,6,1],[25789881,1,6,3,0],[25789881,0,1,0,0],[25789881,1,1,3,0],[25789881,0,1,1,0],[25802262,2,4,7,2],[25802262,1,7,1,0],[25802262,1,7,0,0],[25802262,0,7,1,0],[25802262,0,4,0,0],[25802262,1,4,2,0],[25802262,0,4,1,0],[25809927,2,5,8,1],[25809927,1,8,1,0],[25809927,1,8,0,0],[25809927,0,8,1,0],[25809927,0,5,0,0],[25809927,1,5,2,0],[25809927,0,5,1,0],[26000379,2,1,4,2],[26000379,1,4,3,0],[26000379,0,1,0,0],[26000379,1,1,2,0],[26000379,0,1,1,0],[26092024,2,7,8,2],[26092024,1,8,1,0],[26092024,0,7,0,0],[26103490,2,8,9,1],[26103490,0,8,0,0],[26103490,1,8,0,0],[26103490,0,8,1,0],[26179205,2,1,5,1],[26179205,1,5,3,0],[26179205,0,1,0,0],[26179205,1,1,1,0],[26179205,0,1,1,0],[26338807,2,8,9,2],[26338807,0,8,0,0],[26348194,2,1,3,1],[26348194,1,3,4,0],[26348194,0,1,0,0],[26348194,1,1,0,0],[26348194,0,1,1,0],[26390032,2,6,8,1],[26390032,1,8,1,0],[26390032,1,8,0,0],[26390032,0,8,1,0],[26390032,0,6,0,0],[26390032,1,6,2,0],[26390032,0,6,1,0],[26390600,2,2,10,0],[26390600,0,2,0,0],[26521205,2,1,6,1],[26521205,1,6,3,0],[26521205,0,1,0,0],[26600361,2,0,1,2],[26600361,1,1,1,0],[26600361,1,1,0,0],[26600361,0,1,1,0],[26600953,2,8,9,1],[26600953,0,8,0,0],[26719119,2,5,8,1],[26719119,1,8,1,0],[26719119,1,8,0,0],[26719119,0,8,1,0],[26719119,0,5,0,0],[26719119,1,5,2,0],[26719119,0,5,1,0],[26747765,2,1,5,2],[26747765,1,5,3,0],[26747765,0,1,0,0],[26762267,2,0,1,2],[26762267,1,1,1,0],[26762267,1,1,0,0],[26762267,0,1,1,0],[26907995,2,0,1,1],[26907995,1,1,1,0],[26930229,2,3,8,2],[26930229,1,8,1,0],[26930229,0,3,0,0],[26930229,1,3,3,0],[26930229,0,3,1,0],[26938845,2,1,3,2],[26938845,1,3,4,0],[26938845,0,1,0,0],[26938845,1,1,0,0],[26938845,0,1,1,0],[26980806,2,0,1,1],[26980806,1,1,1,0],[27038986,2,8,9,1],[27038986,0,8,0,0],[27038986,1,8,0,0],[27038986,0,8,1,0],[27063681,2,0,1,1],[27063681,1,1,2,0],[27084851,2,6,7,1],[27084851,1,7,1,0],[27084851,1,7,0,0],[27084851,0,7,1,0],[27084851,0,6,0,0],[27084851,1,6,2,0],[27084851,0,6,1,0],[27162624,2,1,6,1],[27162624,1,6,3,0],[27162624,0,1,0,0],[27162624,1,1,1,0],[27162624,0,1,1,0],[27297178,2,7,8,1],[27297178,1,8,1,0],[27297178,0,7,0,0],[27300022,2,0,1,1],[27300022,1,1,2,0],[27324563,2,4,8,2],[27324563,1,8,2,0],[27324563,0,4,0,0],[27324563,1,4,2,0],[27324563,0,4,1,0],[27377080,2,8,9,2],[27377080,0,8,0,0],[27377080,1,8,1,0],[27377080,0,8,1,0],[27379900,2,1,4,1],[27379900,1,4,3,0],[27379900,0,1,0,0],[27379900,1,1,1,0],[27379900,0,1,1,0],[27418816,2,0,1,2],[27418816,1,1,2,0],[27498466,2,1,4,1],[27498466,1,4,4,0],[27498466,0,1,0,0],[27498466,1,1,1,0],[27498466,0,1,1,0],[27587240,2,8,9,1],[27587240,0,8,0,0],[27587240,1,8,0,0],[27587240,0,8,1,0],[27612481,2,5,7,1],[27612481,1,7,1,0],[27612481,1,7,0,0],[27612481,0,7,1,0],[27612481,0,5,0,0],[27612481,1,5,2,0],[27612481,0,5,1,0],[27716846,2,8,9,2],[27716846,0,8,0,0],[27719005,2,1,5,2],[27719005,1,5,3,0],[27719005,0,1,0,0],[27719005,1,1,0,0],[27719005,0,1,1,0],[27833919,2,0,1,1],[27833919,1,1,1,0],[27908779,2,1,5,1],[27908779,1,5,4,0],[27908779,0,1,0,0],[27908779,1,1,0,0],[27908779,0,1,1,0],[27920814,2,3,7,1],[27920814,1,7,1,0],[27920814,0,3,0,0],[27920814,1,3,3,0],[27920814,0,3,1,0],[28017554,2,7,8,1],[28017554,1,8,1,0],[28017554,1,8,0,0],[28017554,0,8,1,0],[28017554,0,7,0,0],[28017554,1,7,0,0],[28017554,0,7,1,0],[28032512,2,0,1,2],[28032512,1,1,1,0],[28049206,2,0,1,2],[28049206,1,1,2,0],[28053528,2,1,3,1],[28053528,1,3,4,0],[28053528,0,1,0,0],[28053528,1,1,1,0],[28053528,0,1,1,0],[28110200,2,6,8,1],[28110200,1,8,1,0],[28110200,0,6,0,0],[28110200,1,6,2,0],[28110200,0,6,1,0],[28186390,2,0,1,1],[28186390,1,1,2,0],[28191721,2,1,6,2],[28191721,1,6,3,0],[28191721,0,1,0,0],[28191721,1,1,1,0],[28191721,0,1,1,0],[28317555,2,8,9,1],[28317555,0,8,0,0],[28317555,1,8,0,0],[28317555,0,8,1,0],[28383939,2,1,6,2],[28383939,1,6,4,0],[28383939,0,1,0,0],[28383939,1,1,0,0],[28383939,0,1,1,0],[28390549,2,7,8,1],[28390549,1,8,1,0],[28390549,0,7,0,0],[28544937,2,8,9,1],[28544937,0,8,0,0],[28544937,1,8,0,0],[28544937,0,8,1,0],[28546205,0,1,2,0],[28546224,2,0,1,2],[28546224,1,1,1,0],[28634919,2,4,8,2],[28634919,1,8,1,0],[28634919,0,4,0,0],[28634919,1,4,3,0],[28634919,0,4,1,0],[28634919,2,1,4,1],[28634919,1,4,4,0],[28634919,0,1,0,0],[28634919,1,1,0,0],[28634919,0,1,1,0],[28707935,2,0,1,1],[28707935,1,1,1,0]],"nodes":["arrivals","triage","trauma","exam_1","exam_2","exam_3","exam_4","lab","discharge","home","admitted"],"part_types":["critical","minor","urgent"],"t_end_ms":28800000,"truncated":false},"types":[{"category":"source","description":"Creates parts. Mix of part types, random inter-arrival times.","name":"source","params":[{"default":{"dist":"exponential","mean":12.0},"doc":"Time between arrivals, seconds.","kind":"distribution","name":"interarrival"},{"default":{"part":1},"doc":"Part types and their relative weights, e.g. {\"A\": 3, \"B\": 1}.","kind":"object","name":"mix"},{"default":{},"doc":"Priority per part type (used by 'priority' queue discipline).","kind":"object","name":"priority"},{"choices":["drop","wait"],"default":"drop","doc":"When nothing downstream accepts: lose the arrival, or wait.","kind":"enum","name":"on_blocked"},{"default":-1,"doc":"Stop after this many parts (-1 = never).","kind":"integer","name":"max_parts"}]},{"category":"station","description":"A processing station: bounded buffer, stochastic service, optional failures and changeovers.","name":"machine","params":[{"default":5,"doc":"Buffer slots for waiting parts (the machine holds one more). -1 = unbounded.","kind":"integer","name":"capacity"},{"default":{"dist":"normal","mean":10.0,"stddev":1.5},"doc":"Processing time in seconds.","kind":"distribution","name":"process"},{"default":{},"doc":"Per part-type processing time overrides: {\"B\": {...}}.","kind":"object","name":"process_by_type"},{"default":null,"doc":"Changeover time added when the part type changes.","kind":"distribution","name":"setup"},{"choices":["fifo","lifo","priority"],"default":"fifo","doc":"Which waiting part is served next.","kind":"enum","name":"discipline"},{"choices":["block","drop"],"default":"block","doc":"Full buffer: block upstream (backpressure) or drop the arriving part.","kind":"enum","name":"on_full"},{"default":0.0,"doc":"Mean time between failures, seconds (0 = never fails).","kind":"number","name":"mtbf"},{"default":0.0,"doc":"Mean time to repair, seconds.","kind":"number","name":"mttr"},{"choices":["operating","wall"],"default":"operating","doc":"MTBF counts only busy time (operating) or calendar time (wall).","kind":"enum","name":"failure_clock"},{"choices":["resume","restart","scrap"],"default":"resume","doc":"Part in progress when the machine breaks: continue after repair, redo, or scrap.","kind":"enum","name":"on_failure"},{"default":1.0,"doc":"Multiplier on every processing time (what-if knob).","kind":"number","name":"process_scale"},{"default":1.0,"doc":"Multiplier on every repair time (what-if knob).","kind":"number","name":"repair_scale"}]},{"category":"station","description":"Groups parts into batches, then processes the batch as one unit.","name":"batcher","params":[{"default":5,"doc":"Buffer slots for waiting parts (the machine holds one more). -1 = unbounded.","kind":"integer","name":"capacity"},{"default":{"dist":"normal","mean":10.0,"stddev":1.5},"doc":"Processing time in seconds.","kind":"distribution","name":"process"},{"default":{},"doc":"Per part-type processing time overrides: {\"B\": {...}}.","kind":"object","name":"process_by_type"},{"default":null,"doc":"Changeover time added when the part type changes.","kind":"distribution","name":"setup"},{"choices":["fifo","lifo","priority"],"default":"fifo","doc":"Which waiting part is served next.","kind":"enum","name":"discipline"},{"choices":["block","drop"],"default":"block","doc":"Full buffer: block upstream (backpressure) or drop the arriving part.","kind":"enum","name":"on_full"},{"default":0.0,"doc":"Mean time between failures, seconds (0 = never fails).","kind":"number","name":"mtbf"},{"default":0.0,"doc":"Mean time to repair, seconds.","kind":"number","name":"mttr"},{"choices":["operating","wall"],"default":"operating","doc":"MTBF counts only busy time (operating) or calendar time (wall).","kind":"enum","name":"failure_clock"},{"choices":["resume","restart","scrap"],"default":"resume","doc":"Part in progress when the machine breaks: continue after repair, redo, or scrap.","kind":"enum","name":"on_failure"},{"default":1.0,"doc":"Multiplier on every processing time (what-if knob).","kind":"number","name":"process_scale"},{"default":1.0,"doc":"Multiplier on every repair time (what-if knob).","kind":"number","name":"repair_scale"},{"default":4,"doc":"Parts per batch.","kind":"integer","name":"batch_size"},{"default":0.0,"doc":"Release a partial batch after this many seconds (0 = wait for a full batch).","kind":"number","name":"timeout"},{"default":null,"doc":"Part type of the batch (default: type of the first part).","kind":"string","name":"output_type"}]},{"category":"station","description":"Waits for a complete kit of part types, then merges them into one product.","name":"assembler","params":[{"default":5,"doc":"Buffer slots PER PART TYPE (-1 = unbounded). Must cover the kit count.","kind":"integer","name":"capacity"},{"default":{"dist":"normal","mean":10.0,"stddev":1.5},"doc":"Processing time in seconds.","kind":"distribution","name":"process"},{"default":{},"doc":"Per part-type processing time overrides: {\"B\": {...}}.","kind":"object","name":"process_by_type"},{"default":null,"doc":"Changeover time added when the part type changes.","kind":"distribution","name":"setup"},{"choices":["fifo","lifo","priority"],"default":"fifo","doc":"Which waiting part is served next.","kind":"enum","name":"discipline"},{"choices":["block","drop"],"default":"block","doc":"Full buffer: block upstream (backpressure) or drop the arriving part.","kind":"enum","name":"on_full"},{"default":0.0,"doc":"Mean time between failures, seconds (0 = never fails).","kind":"number","name":"mtbf"},{"default":0.0,"doc":"Mean time to repair, seconds.","kind":"number","name":"mttr"},{"choices":["operating","wall"],"default":"operating","doc":"MTBF counts only busy time (operating) or calendar time (wall).","kind":"enum","name":"failure_clock"},{"choices":["resume","restart","scrap"],"default":"resume","doc":"Part in progress when the machine breaks: continue after repair, redo, or scrap.","kind":"enum","name":"on_failure"},{"default":1.0,"doc":"Multiplier on every processing time (what-if knob).","kind":"number","name":"process_scale"},{"default":1.0,"doc":"Multiplier on every repair time (what-if knob).","kind":"number","name":"repair_scale"},{"default":{"A":1,"B":1},"doc":"Parts required per assembly: {\"body\": 1, \"wheel\": 4}.","kind":"object","name":"kit"},{"default":"assembly","doc":"Part type of the assembled product.","kind":"string","name":"output_type"}]},{"category":"transport","description":"A conveyor: every part spends a transit time inside; unlimited parallelism.","name":"delay","params":[{"default":{"dist":"constant","value":5.0},"doc":"Transit time, seconds.","kind":"distribution","name":"transit"},{"default":-1,"doc":"Max parts on the conveyor (-1 = unbounded).","kind":"integer","name":"capacity"}]},{"category":"sink","description":"Terminal node. 'completed' sinks count as shipped output, 'scrapped' as waste.","name":"sink","params":[{"choices":["completed","scrapped"],"default":"completed","doc":"How parts arriving here are accounted.","kind":"enum","name":"counts_as"}]},{"category":"station","description":"CUSTOM: inspection with a quality threshold and rework budget (shows how to extend Machine).","name":"quality_gate","params":[{"default":5,"doc":"Buffer slots for waiting parts (the machine holds one more). -1 = unbounded.","kind":"integer","name":"capacity"},{"default":{"dist":"normal","mean":10.0,"stddev":1.5},"doc":"Processing time in seconds.","kind":"distribution","name":"process"},{"default":{},"doc":"Per part-type processing time overrides: {\"B\": {...}}.","kind":"object","name":"process_by_type"},{"default":null,"doc":"Changeover time added when the part type changes.","kind":"distribution","name":"setup"},{"choices":["fifo","lifo","priority"],"default":"fifo","doc":"Which waiting part is served next.","kind":"enum","name":"discipline"},{"choices":["block","drop"],"default":"block","doc":"Full buffer: block upstream (backpressure) or drop the arriving part.","kind":"enum","name":"on_full"},{"default":0.0,"doc":"Mean time between failures, seconds (0 = never fails).","kind":"number","name":"mtbf"},{"default":0.0,"doc":"Mean time to repair, seconds.","kind":"number","name":"mttr"},{"choices":["operating","wall"],"default":"operating","doc":"MTBF counts only busy time (operating) or calendar time (wall).","kind":"enum","name":"failure_clock"},{"choices":["resume","restart","scrap"],"default":"resume","doc":"Part in progress when the machine breaks: continue after repair, redo, or scrap.","kind":"enum","name":"on_failure"},{"default":1.0,"doc":"Multiplier on every processing time (what-if knob).","kind":"number","name":"process_scale"},{"default":1.0,"doc":"Multiplier on every repair time (what-if knob).","kind":"number","name":"repair_scale"},{"default":0.15,"doc":"Parts with quality below this fail inspection (quality ~ U[0,1]).","kind":"number","name":"threshold"},{"default":2,"doc":"Rework attempts before a failing part is scrapped.","kind":"integer","name":"max_reworks"},{"default":null,"doc":"Downstream node id for good parts.","kind":"string","name":"pass_to"},{"default":null,"doc":"Downstream node id for rework (empty = no rework).","kind":"string","name":"rework_to"},{"default":null,"doc":"Downstream node id for scrap (empty = pass anyway).","kind":"string","name":"scrap_to"}]}]};
+"use strict";
+// =============================================================== helpers
+const $ = s => document.querySelector(s);
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === 'class') e.className = v;
+    else if (k === 'style') e.style.cssText = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (v === true) e.setAttribute(k, '');
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat(Infinity)) { if (kid == null || kid === false) continue; e.append(kid.nodeType ? kid : document.createTextNode(String(kid))); }
+  return e;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (v, d = 1) => (v == null || isNaN(v)) ? '-' : Number(v).toLocaleString(undefined, {minimumFractionDigits: d, maximumFractionDigits: d});
+const hms = ms => { const s = Math.floor(ms / 1000); return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map(x => String(x).padStart(2, '0')).join(':'); };
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const KIND_COLOR = {source:'#3d9a78', machine:'#4a86d6', quality_gate:'#2e9aa6', delay:'#8794a6', batcher:'#c58a2b', assembler:'#b9647f', sink:'#6f7b8c'};
+const PART_COLORS = ['#4a86d6','#c58a2b','#3d9a78','#d6694a','#2e9aa6','#9aa64a','#8794a6','#b9647f'];
+const EMB = window.EMBEDDED || null;
+
+// =============================================================== state
+let cfg = {simulation: {duration_seconds: 7200, random_seed: 42, sample_interval: 30}, node_types: {}, nodes: []};
+let types = [];                 // node type schemas from the C++ registry
+let result = null;              // {summary, trace, whatif, replication}
+let sel = null;                 // {kind:'node', id} | {kind:'edge', from, idx}
+let rtab = 'node', restab = 'summary';
+let serverMode = !EMB;
+let dirtySinceRun = false;
+const view = {x: 0, y: 0, k: 1};
+const NW = 156, NH = 64;
+
+// replay
+let rp = null;                  // replay structures
+let playing = true, speed = 120;
+
+// =============================================================== config model
+const RESERVED = new Set(['id','type','label','name','x','y','params','routing','downstream','ui','color']);
+function normalizeCfg(c) {
+  const out = {simulation: Object.assign({}, c.simulation || {}), node_types: c.node_types || {}, nodes: []};
+  if (c.name) out.name = c.name;
+  if (c.description) out.description = c.description;
+  for (const n of c.nodes || []) {
+    const m = {id: n.id, type: n.type, params: Object.assign({}, n.params || {}), downstream: (n.downstream || []).map(d => typeof d === 'string' ? {to: d} : Object.assign({}, d))};
+    if (n.label || n.name) m.label = n.label || n.name;
+    if (n.x != null) { m.x = n.x; m.y = n.y; }
+    if (n.routing) m.routing = n.routing;
+    for (const k of Object.keys(n)) if (!RESERVED.has(k)) m.params[k] = n[k];
+    out.nodes.push(m);
+  }
+  return out;
+}
+function baseTypeOf(type) {
+  for (let i = 0; i < 16; i++) {
+    if (types.find(t => t.name === type)) return type;
+    const t = cfg.node_types[type]; if (!t) return type; type = t.base;
+  }
+  return type;
+}
+function schemaOf(type) { return types.find(t => t.name === baseTypeOf(type)); }
+function templateDefaults(type) {   // params contributed by node_types inheritance
+  const chain = []; let t = type;
+  for (let i = 0; i < 16 && cfg.node_types[t]; i++) { chain.unshift(cfg.node_types[t]); t = cfg.node_types[t].base; }
+  return Object.assign({}, ...chain.map(c => c.params || {}));
+}
+const nodeById = id => cfg.nodes.find(n => n.id === id);
+const kindOf = n => baseTypeOf(n.type);
+
+function autoLayout() {
+  const depth = new Map(); const q = [];
+  cfg.nodes.filter(n => kindOf(n) === 'source').forEach(n => { depth.set(n.id, 0); q.push(n.id); });
+  while (q.length) { const id = q.shift(); for (const e of nodeById(id).downstream) if (!depth.has(e.to) && nodeById(e.to)) { depth.set(e.to, depth.get(id) + 1); q.push(e.to); } }
+  let extra = 0; cfg.nodes.forEach(n => { if (!depth.has(n.id)) depth.set(n.id, extra++); });
+  const layers = {};
+  cfg.nodes.forEach(n => (layers[depth.get(n.id)] = layers[depth.get(n.id)] || []).push(n));
+  for (const [d, list] of Object.entries(layers)) list.forEach((n, i) => { n.x = 100 + d * 250; n.y = 80 + (i - (list.length - 1) / 2) * 150 + 220; });
+}
+function ensureLayout() { if (cfg.nodes.some(n => n.x == null)) autoLayout(); }
+function uniqueId(base) { let i = 1; while (nodeById(base + '_' + i)) i++; return base + '_' + i; }
+
+function markDirty() { dirtySinceRun = !!result && serverMode; $('#stale').style.display = dirtySinceRun ? '' : 'none'; draw(); }
+
+// =============================================================== api
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  let j; try { j = await r.json(); } catch (e) { throw new Error('server returned no JSON'); }
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+function toast(text, info) { const m = $('#msg'); m.textContent = text; m.className = info ? 'info' : ''; m.style.display = text ? 'block' : 'none'; if (info) setTimeout(() => { if (m.textContent === text) m.style.display = 'none'; }, 2500); }
+
+async function run(opts = {}) {
+  if (!serverMode) return toast('This is an offline replay. Start `factory_sim serve` to run simulations.');
+  toast('');
+  $('#bRun').disabled = true; $('#bRun').textContent = 'Running...';
+  try {
+    const data = await api('/api/run', Object.assign({config: cfg, trace: true}, opts));
+    if (opts.whatif || opts.replications) { result = Object.assign(result || {}, {whatif: data.whatif || (result && result.whatif), replication: data.replication || (result && result.replication)}); if (!result.summary) result = data; }
+    else result = data;
+    dirtySinceRun = false; $('#stale').style.display = 'none';
+    if (!opts.whatif && !opts.replications) { buildReplay(); restab = 'summary'; }
+    else restab = opts.whatif ? 'whatif' : 'rep';
+    renderResults(); draw();
+  } catch (e) { toast(e.message); }
+  $('#bRun').disabled = false; $('#bRun').textContent = 'Run simulation';
+}
+
+// =============================================================== replay
+function buildReplay() {
+  const t = result && result.trace; if (!t) { rp = null; return; }
+  const n = t.nodes.length;
+  const idToCfg = t.nodes.map(id => cfg.nodes.findIndex(x => x.id === id));
+  rp = {t, ev: t.events, ri: 0, time: 0, end: t.t_end_ms, nstate: new Int8Array(n), nq: new Int32Array(n), flights: [], cps: [], idToCfg, lastApplied: 0};
+  const stride = 1500;
+  const ns = new Int8Array(n), nq = new Int32Array(n);
+  rp.cps.push({ri: 0, ns: ns.slice(), nq: nq.slice()});
+  for (let i = 0; i < rp.ev.length; i++) {
+    const [, k, a, b] = rp.ev[i];
+    if (k === 0) ns[a] = b; else if (k === 1) nq[a] = b;
+    if ((i + 1) % stride === 0) rp.cps.push({ri: i + 1, ns: ns.slice(), nq: nq.slice()});
+  }
+  rp.stride = stride;
+  $('#scrub').max = rp.end; $('#scrub').value = 0; $('#tEnd').textContent = hms(rp.end);
+  playing = true; $('#bPlay').textContent = 'Pause';
+}
+function seek(ms) {
+  if (!rp) return;
+  ms = Math.max(0, Math.min(rp.end, ms));
+  if (ms < rp.time) {                       // rewind to the nearest checkpoint
+    let cp = rp.cps[0];
+    for (const c of rp.cps) { if (c.ri < rp.ev.length && rp.ev[c.ri] && rp.ev[c.ri][0] <= ms) cp = c; else if (c.ri === 0) cp = c; }
+    rp.nstate.set(cp.ns); rp.nq.set(cp.nq); rp.ri = cp.ri; rp.flights = [];
+  }
+  const ev = rp.ev; let pushed = 0; const now = performance.now();
+  while (rp.ri < ev.length && ev[rp.ri][0] <= ms) {
+    const [, k, a, b, c] = ev[rp.ri++];
+    if (k === 0) rp.nstate[a] = b; else if (k === 1) rp.nq[a] = b;
+    else if (k === 2 && playing && ms - rp.time < 4000 * speed / 60 && pushed++ < 60) rp.flights.push({a, b, c, w0: now});
+  }
+  rp.time = ms;
+}
+function stateOf(cfgIdx) {
+  if (!rp) return null;
+  const ti = rp.idToCfg.indexOf(cfgIdx);
+  return ti < 0 ? null : {state: rp.nstate[ti], q: rp.nq[ti]};
+}
+
+// =============================================================== canvas
+const cv = $('#cv'), ctx = cv.getContext('2d');
+let dpr = 1, cw = 0, ch = 0;
+function resize() {
+  const r = $('#stage').getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cw = r.width; ch = r.height; cv.width = Math.max(1, cw * dpr); cv.height = Math.max(1, ch * dpr);
+}
+let userMoved = false;   // once the user pans/zooms we stop auto-fitting the view
+new ResizeObserver(() => { resize(); if (!userMoved) fitView(); draw(); }).observe($('#stage'));
+const toScreen = (x, y) => ({x: x * view.k + view.x, y: y * view.k + view.y});
+const toWorld = (x, y) => ({x: (x - view.x) / view.k, y: (y - view.y) / view.k});
+function fitView() {
+  if (!cfg.nodes.length) return;
+  ensureLayout();
+  const xs = cfg.nodes.map(n => n.x), ys = cfg.nodes.map(n => n.y);
+  const minX = Math.min(...xs) - NW * 0.75, maxX = Math.max(...xs) + NW * 0.75, minY = Math.min(...ys) - 60, maxY = Math.max(...ys) + 90;
+  view.k = Math.min(1.5, Math.max(0.3, Math.min(cw / (maxX - minX), ch / (maxY - minY))));
+  view.x = (cw - (maxX + minX) * view.k) / 2; view.y = (ch - (maxY + minY) * view.k) / 2;
+}
+function bez(g, u) {
+  const m = 1 - u;
+  return {x: m*m*m*g.p0.x + 3*m*m*u*g.p1.x + 3*m*u*u*g.p2.x + u*u*u*g.p3.x, y: m*m*m*g.p0.y + 3*m*m*u*g.p1.y + 3*m*u*u*g.p2.y + u*u*u*g.p3.y};
+}
+function geom(a, b) {
+  if (b.x - a.x > NW + 20) {
+    const p0 = {x: a.x + NW / 2, y: a.y}, p3 = {x: b.x - NW / 2, y: b.y}, dx = (p3.x - p0.x) * 0.5;
+    return {p0, p1: {x: p0.x + dx, y: p0.y}, p2: {x: p3.x - dx, y: p3.y}, p3};
+  }
+  const dir = b.y < a.y ? -1 : 1, drop = 80 + Math.abs(b.x - a.x) * 0.12;
+  const p0 = {x: a.x, y: a.y + dir * NH / 2}, p3 = {x: b.x, y: b.y + dir * NH / 2};
+  return {p0, p1: {x: a.x + (b.x - a.x) * 0.1, y: p0.y + dir * drop}, p2: {x: b.x - (b.x - a.x) * 0.1, y: p3.y + dir * drop}, p3};
+}
+const STATE_COL = ['--idle', '--busy', '--blocked', '--down'];
+const STATE_NAME = ['Starved', 'Busy', 'Blocked', 'Down'];
+function draw() {
+  if (!cw) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cw, ch);
+  const C = {line: css('--line'), strong: css('--line-strong'), ink: css('--ink'), muted: css('--muted'), accent: css('--accent'),
+             panel: css('--panel'), raised: css('--raised'), rework: css('--rework'), warn: css('--warn'), bad: css('--bad'), good: css('--busy')};
+  const gs = 32 * view.k; ctx.fillStyle = css('--grid');
+  if (gs > 9) for (let x = ((view.x % gs) + gs) % gs; x < cw; x += gs) for (let y = ((view.y % gs) + gs) % gs; y < ch; y += gs) ctx.fillRect(x, y, 1.5, 1.5);
+  ctx.save(); ctx.translate(view.x, view.y); ctx.scale(view.k, view.k);
+  ctx.textBaseline = 'middle';
+  const sum = result && result.summary;
+  const dead = new Set(sum && sum.deadlock ? sum.deadlock.blocked : []);
+  const now = performance.now();
+  const activeEdges = new Set();
+  if (rp) for (const f of rp.flights) if (now - f.w0 < 480) activeEdges.add(rp.t.nodes[f.a] + '>' + rp.t.nodes[f.b]);
+
+  // ---- edges
+  ctx.textAlign = 'center';
+  for (const n of cfg.nodes) {
+    const tot = n.downstream.reduce((acc, e) => acc + (Number(e.weight) || 1), 0);
+    n.downstream.forEach((e, i) => {
+      const m = nodeById(e.to); if (!m || m === n) return;
+      const g = geom(n, m), isSel = sel && sel.kind === 'edge' && sel.from === n.id && sel.idx === i, hot = activeEdges.has(n.id + '>' + m.id);
+      const col = isSel || hot ? C.accent : e.rework ? C.rework : C.strong;
+      ctx.strokeStyle = col; ctx.fillStyle = col;
+      ctx.lineWidth = isSel ? 2.5 : hot ? 2.5 : 1.5;
+      ctx.setLineDash(e.rework ? [8, 5] : e.bypass ? [2, 4] : []);
+      ctx.beginPath(); ctx.moveTo(g.p0.x, g.p0.y); ctx.bezierCurveTo(g.p1.x, g.p1.y, g.p2.x, g.p2.y, g.p3.x, g.p3.y); ctx.stroke();
+      ctx.setLineDash([]);
+      const a = Math.atan2(g.p3.y - g.p2.y, g.p3.x - g.p2.x);
+      ctx.beginPath(); ctx.moveTo(g.p3.x, g.p3.y); ctx.lineTo(g.p3.x - 10 * Math.cos(a - .4), g.p3.y - 10 * Math.sin(a - .4)); ctx.lineTo(g.p3.x - 10 * Math.cos(a + .4), g.p3.y - 10 * Math.sin(a + .4)); ctx.closePath(); ctx.fill();
+      const mid = bez(g, .5);
+      const weighted = n.downstream.length > 1 && kindOf(n) !== 'quality_gate' && !(n.routing && n.routing.rules && n.routing.rules.length);
+      let label = weighted ? Math.round(100 * (Number(e.weight) || 1) / tot) + '%' : '';
+      if (e.rework) label = (label ? label + ' ' : '') + 'rework';
+      if (e.bypass) label = (label ? label + ' ' : '') + 'bypass';
+      if (e.label && !e.rework) label = (label ? label + ' ' : '') + e.label;
+      if (label) {
+        ctx.font = '500 11px Inter, system-ui, sans-serif'; const w = ctx.measureText(label).width + 16;
+        ctx.fillStyle = C.panel; ctx.beginPath(); ctx.roundRect(mid.x - w / 2, mid.y - 10, w, 20, 4); ctx.fill();
+        ctx.strokeStyle = isSel ? C.accent : C.line; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = e.rework ? C.rework : C.muted; ctx.fillText(label, mid.x, mid.y + 1);
+      } else {
+        ctx.fillStyle = C.panel; ctx.strokeStyle = isSel ? C.accent : C.strong; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(mid.x, mid.y, 4.5, 0, 7); ctx.fill(); ctx.stroke();
+      }
+    });
+  }
+
+  // ---- nodes: flat cards, kind strip on the left, utilisation bar along the bottom
+  const bn = sum ? sum.bottleneck : null;
+  const by = {}; if (sum) for (const r of sum.nodes) by[r.id] = r;
+  cfg.nodes.forEach((n, idx) => {
+    const x = n.x - NW / 2, y = n.y - NH / 2, k = kindOf(n), kc = KIND_COLOR[k] || KIND_COLOR.machine;
+    const st = stateOf(idx), r = by[n.id];
+    const isSel = sel && sel.kind === 'node' && sel.id === n.id, isDead = dead.has(n.id);
+    const stateCol = st ? css(STATE_COL[st.state]) : null;
+    if (isSel) { ctx.strokeStyle = C.accent; ctx.globalAlpha = .28; ctx.lineWidth = 7; ctx.beginPath(); ctx.roundRect(x, y, NW, NH, 8); ctx.stroke(); ctx.globalAlpha = 1; }
+    ctx.fillStyle = C.raised; ctx.beginPath(); ctx.roundRect(x, y, NW, NH, 8); ctx.fill();
+    ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, NW, NH, 8); ctx.clip();
+    ctx.fillStyle = kc; ctx.fillRect(x, y, 5, NH);
+    if (r && r.station) {                       // utilisation bar: busy / blocked / down share of the run
+      const bx = x + 5, bw = NW - 5; let off = 0; ctx.fillStyle = C.line; ctx.fillRect(bx, y + NH - 4, bw, 4);
+      for (const [v, c] of [[r.busy_pct, css('--busy')], [r.blocked_pct, css('--blocked')], [r.down_pct, css('--down')]]) { const w = bw * v / 100; ctx.fillStyle = c; ctx.fillRect(bx + off, y + NH - 4, w, 4); off += w; }
+    }
+    ctx.restore();
+    ctx.strokeStyle = isDead ? C.bad : isSel ? C.accent : (stateCol || C.strong); ctx.lineWidth = isDead ? 2.5 : (isSel || stateCol) ? 2 : 1.5;
+    ctx.beginPath(); ctx.roundRect(x, y, NW, NH, 8); ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = C.ink; ctx.font = '600 13px Inter, system-ui, sans-serif'; ctx.fillText(trunc(n.label || n.id, 19), x + 18, y + 22);
+    ctx.font = '11.5px Inter, system-ui, sans-serif';
+    if (st) {
+      ctx.fillStyle = stateCol; ctx.fillRect(x + 18, y + 36, 8, 8);
+      ctx.fillStyle = C.muted; ctx.fillText(STATE_NAME[st.state], x + 32, y + 41);
+    } else { ctx.fillStyle = C.muted; ctx.fillText(k.replace('_', ' '), x + 18, y + 41); }
+    // queue slots under the card
+    if (st && k !== 'source' && k !== 'sink') {
+      const s_ = schemaOf(n.type); const capSpec = n.params.capacity ?? templateDefaults(n.type).capacity ?? (s_ && (s_.params.find(p => p.name === 'capacity') || {}).default);
+      const cap = (typeof capSpec === 'number') ? capSpec : -1;
+      const slots = cap > 0 && cap <= 12 ? cap : Math.min(Math.max(st.q, 4), 12);
+      for (let i = 0; i < slots; i++) {
+        const sx = x + i * 14, sy = y + NH + 8;
+        ctx.strokeStyle = C.strong; ctx.lineWidth = 1; ctx.strokeRect(sx + .5, sy + .5, 10, 10);
+        if (i < st.q) { ctx.fillStyle = (cap > 0 && st.q >= cap) ? css('--blocked') : C.accent; ctx.fillRect(sx + 2.5, sy + 2.5, 6, 6); }
+      }
+      if (st.q > slots) { ctx.fillStyle = C.muted; ctx.font = '11px Inter, system-ui, sans-serif'; ctx.fillText('+' + (st.q - slots), x + slots * 14 + 4, y + NH + 14); }
+    }
+    // tags
+    const tag = (text, col, tx) => { ctx.font = '600 10px Inter, system-ui, sans-serif'; const w = ctx.measureText(text).width + 14; ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(tx, y - 24, w, 18, 3); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(text, tx + 7, y - 14); };
+    if (isDead) tag('DEADLOCK', C.bad, x);
+    else if (n.id === bn && !(sum && sum.deadlock)) tag('BOTTLENECK', C.warn, x);
+    if (isSel && k !== 'sink') { ctx.fillStyle = C.accent; ctx.strokeStyle = C.panel; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(n.x + NW / 2 + 11, n.y, 7, 0, 7); ctx.fill(); ctx.stroke(); }
+  });
+
+  // ---- parts travelling between nodes
+  if (rp) {
+    rp.flights = rp.flights.filter(f => now - f.w0 < 480);
+    for (const f of rp.flights) {
+      const a = nodeById(rp.t.nodes[f.a]), b = nodeById(rp.t.nodes[f.b]); if (!a || !b) continue;
+      const u = (now - f.w0) / 480, e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+      const p = bez(geom(a, b), e);
+      ctx.fillStyle = PART_COLORS[f.c % PART_COLORS.length]; ctx.strokeStyle = C.panel; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7); ctx.fill(); ctx.stroke();
+    }
+  }
+  ctx.restore();
+  if (!cfg.nodes.length) { ctx.fillStyle = C.muted; ctx.font = '14px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Empty pipeline. Add a source from the left panel, then keep adding nodes.', cw / 2, ch / 2); }
+  $('#hint').textContent = rp ? 'Replay ' + hms(rp.time) + ' / ' + hms(rp.end) + (rp.t.truncated ? ' (trace truncated)' : '') : (serverMode ? 'Edit the pipeline, then run it' : 'Offline replay');
+}
+const trunc = (s, n) => s.length > n ? s.slice(0, n - 1) + '...' : s;
+
+// =============================================================== canvas interaction
+let drag = null;
+function hitNode(wx, wy) { for (let i = cfg.nodes.length - 1; i >= 0; i--) { const n = cfg.nodes[i]; if (Math.abs(wx - n.x) <= NW / 2 && Math.abs(wy - n.y) <= NH / 2) return n; } return null; }
+function hitHandle(wx, wy) { if (!sel || sel.kind !== 'node') return null; const n = nodeById(sel.id); if (n && kindOf(n) !== 'sink' && Math.hypot(wx - (n.x + NW / 2 + 9), wy - n.y) < 11) return n; return null; }
+function hitEdge(wx, wy) {
+  for (const n of cfg.nodes) for (let i = 0; i < n.downstream.length; i++) { const m = nodeById(n.downstream[i].to); if (!m || m === n) continue; const mid = bez(geom(n, m), .5); if (Math.hypot(wx - mid.x, wy - mid.y) < 14) return {from: n.id, idx: i}; }
+  return null;
+}
+cv.addEventListener('mousedown', ev => {
+  const r = cv.getBoundingClientRect(), p = toWorld(ev.clientX - r.left, ev.clientY - r.top);
+  const hd = hitHandle(p.x, p.y);
+  if (hd) { drag = {type: 'connect', from: hd, x: p.x, y: p.y}; return; }
+  const n = hitNode(p.x, p.y);
+  if (n) { sel = {kind: 'node', id: n.id}; drag = {type: 'node', n, dx: p.x - n.x, dy: p.y - n.y, moved: false}; renderInspector(); draw(); return; }
+  const e = hitEdge(p.x, p.y);
+  if (e) { sel = {kind: 'edge', from: e.from, idx: e.idx}; renderInspector(); draw(); return; }
+  sel = null; userMoved = true; drag = {type: 'pan', sx: ev.clientX, sy: ev.clientY, vx: view.x, vy: view.y}; cv.style.cursor = 'grabbing'; renderInspector(); draw();
+});
+window.addEventListener('mousemove', ev => {
+  if (!drag) return;
+  const r = cv.getBoundingClientRect(), p = toWorld(ev.clientX - r.left, ev.clientY - r.top);
+  if (drag.type === 'node') { drag.n.x = Math.round((p.x - drag.dx) / 10) * 10; drag.n.y = Math.round((p.y - drag.dy) / 10) * 10; drag.moved = true; draw(); }
+  else if (drag.type === 'pan') { view.x = drag.vx + ev.clientX - drag.sx; view.y = drag.vy + ev.clientY - drag.sy; draw(); }
+  else if (drag.type === 'connect') { drag.x = p.x; drag.y = p.y; draw(); const a = drag.from; const s = toScreen(a.x + NW / 2 + 9, a.y), t = toScreen(p.x, p.y); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.strokeStyle = css('--accent'); ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y); ctx.stroke(); ctx.setLineDash([]); }
+});
+window.addEventListener('mouseup', ev => {
+  if (!drag) return;
+  if (drag.type === 'connect') {
+    const r = cv.getBoundingClientRect(), p = toWorld(ev.clientX - r.left, ev.clientY - r.top), t = hitNode(p.x, p.y);
+    if (t && t !== drag.from && kindOf(t) !== 'source' && !drag.from.downstream.some(e => e.to === t.id)) { drag.from.downstream.push({to: t.id}); markDirty(); renderInspector(); }
+  } else if (drag.type === 'node' && drag.moved) markDirty();
+  drag = null; cv.style.cursor = 'grab'; draw();
+});
+cv.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  const r = cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top, p = toWorld(mx, my);
+  userMoved = true;
+  view.k = Math.max(0.25, Math.min(2.5, view.k * (ev.deltaY < 0 ? 1.1 : 1 / 1.1)));
+  view.x = mx - p.x * view.k; view.y = my - p.y * view.k; draw();
+}, {passive: false});
+window.addEventListener('keydown', ev => {
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { run(); return; }
+  if (typing) return;
+  if ((ev.key === 'Delete' || ev.key === 'Backspace') && sel) { deleteSelection(); ev.preventDefault(); }
+  else if (ev.key === ' ') { togglePlay(); ev.preventDefault(); }
+  else if (ev.key === 'Escape') { sel = null; renderInspector(); draw(); }
+});
+function deleteSelection() {
+  if (!sel) return;
+  if (sel.kind === 'node') { cfg.nodes = cfg.nodes.filter(n => n.id !== sel.id); cfg.nodes.forEach(n => n.downstream = n.downstream.filter(e => e.to !== sel.id)); }
+  else { const n = nodeById(sel.from); if (n) n.downstream.splice(sel.idx, 1); }
+  sel = null; markDirty(); renderInspector();
+}
+
+// =============================================================== palette
+function addNode(type) {
+  const base = baseTypeOf(type); const s = schemaOf(type);
+  const id = uniqueId(type.replace(/[^a-z0-9_]/gi, '_'));
+  const from = sel && sel.kind === 'node' ? nodeById(sel.id) : null;
+  const n = {id, type, params: {}, downstream: []};
+  if (from && kindOf(from) !== 'sink' && base !== 'source') { n.x = from.x + 200; n.y = from.y + (from.downstream.length * 90); from.downstream.push({to: id}); }
+  else { const c = toWorld(cw / 2, ch / 2); n.x = Math.round(c.x / 10) * 10 + (cfg.nodes.length % 5) * 20; n.y = Math.round(c.y / 10) * 10 + (cfg.nodes.length % 5) * 20; }
+  cfg.nodes.push(n); sel = {kind: 'node', id}; rtab = 'node'; syncTabs(); markDirty(); renderInspector();
+}
+function renderPalette() {
+  const p = $('#palette'); p.innerHTML = '';
+  for (const t of types) p.append(h('button', {class: 'pal', title: t.description, onclick: () => addNode(t.name)}, h('i', {style: 'background:' + (KIND_COLOR[t.name] || KIND_COLOR.machine)}), h('span', {}, h('b', {}, t.name.replace('_', ' ')), h('small', {}, t.category))));
+  const tp = $('#templates'); tp.innerHTML = '';
+  const names = Object.keys(cfg.node_types);
+  if (!names.length) tp.textContent = 'None yet. Select a node and use Save as node type.';
+  for (const nm of names) tp.append(h('button', {class: 'pal', title: 'based on ' + cfg.node_types[nm].base, onclick: () => addNode(nm)}, h('i', {style: 'background:' + (KIND_COLOR[baseTypeOf(nm)] || KIND_COLOR.machine)}), h('span', {}, h('b', {}, nm), h('small', {}, 'based on ' + cfg.node_types[nm].base))));
+}
+
+// =============================================================== inspector
+function syncTabs() { document.querySelectorAll('#rtabs button').forEach(b => b.classList.toggle('on', b.dataset.t === rtab)); }
+$('#rtabs').addEventListener('click', e => { if (e.target.dataset.t) { rtab = e.target.dataset.t; syncTabs(); renderInspector(); } });
+
+function numInput(value, placeholder, onset, step) {
+  return h('input', {type: 'number', step: step || 'any', value: value ?? '', placeholder: placeholder ?? '', oninput: e => onset(e.target.value === '' ? undefined : Number(e.target.value))});
+}
+function distEditor(cur, def, set) {
+  const KINDS = {constant: ['value'], exponential: ['mean'], normal: ['mean', 'stddev'], uniform: ['min', 'max'], triangular: ['min', 'mode', 'max'], lognormal: ['mean', 'stddev']};
+  const asObj = v => v == null ? null : typeof v === 'number' ? {dist: 'constant', value: v} : v;
+  const emit = obj => set(obj.dist === 'constant' ? obj.value : obj);
+  const o = asObj(cur) || asObj(def) || {dist: 'constant', value: 1};
+  const isSet = cur != null;
+  if (cur == null && def == null) {   // optional and unset: offer a choice instead of inventing a value
+    return h('select', {onchange: e => { if (e.target.value) { const k = e.target.value; const nobj = {dist: k}; KINDS[k].forEach((f, i) => nobj[f] = i === 0 ? 5 : 1); emit(nobj); renderInspector(); } }},
+      h('option', {value: ''}, '(none)'), Object.keys(KINDS).map(k => h('option', {value: k}, k)));
+  }
+  const wrap = h('div', {});
+  const kindSel = h('select', {onchange: e => { const k = e.target.value; const nobj = {dist: k}; KINDS[k].forEach((f, i) => nobj[f] = i === 0 ? (o.mean || o.value || 10) : (f === 'stddev' ? 1 : (o[f] ?? (o.mean || 10)))); emit(nobj); renderInspector(); }},
+    Object.keys(KINDS).map(k => h('option', {value: k, selected: k === o.dist}, k)));
+  const fields = h('div', {class: 'row2', style: 'margin-top:4px'}, KINDS[o.dist].map(f => h('div', {style: 'flex:1'}, h('div', {class: 'small'}, f), numInput(o[f], '', v => { const nobj = Object.assign({}, o, {dist: o.dist}); nobj[f] = v ?? 0; emit(nobj); }))));
+  wrap.append(kindSel, fields);
+  if (!isSet) wrap.style.opacity = .7;
+  return wrap;
+}
+function mapEditor(cur, def, set) {
+  const obj = cur || def || {};
+  const wrap = h('div', {});
+  const rows = Object.entries(obj);
+  const write = list => { const o = {}; list.forEach(([k, v]) => { if (k) o[k] = v; }); set(o); };
+  rows.forEach(([k, v], i) => wrap.append(h('div', {class: 'row2', style: 'margin-bottom:3px'},
+    h('input', {value: k, style: 'flex:1', onchange: e => { const l = rows.slice(); l[i] = [e.target.value, v]; write(l); }}),
+    h('input', {type: 'number', step: 'any', value: v, style: 'width:70px', oninput: e => { const l = rows.slice(); l[i] = [k, Number(e.target.value)]; write(l); }}),
+    h('button', {onclick: () => { const l = rows.slice(); l.splice(i, 1); write(l); renderInspector(); }}, 'Del'))));
+  wrap.append(h('button', {onclick: () => { const l = rows.slice(); l.push(['type_' + (rows.length + 1), 1]); write(l); renderInspector(); }}, 'Add row'));
+  if (cur == null) wrap.style.opacity = .75;
+  return wrap;
+}
+function paramControl(n, spec) {
+  const eff = Object.assign({}, templateDefaults(n.type));
+  const has = Object.prototype.hasOwnProperty.call(n.params, spec.name);
+  const cur = has ? n.params[spec.name] : eff[spec.name];
+  const defaultShown = eff[spec.name] !== undefined ? eff[spec.name] : spec.default;
+  const set = v => { if (v === undefined) delete n.params[spec.name]; else n.params[spec.name] = v; markDirty(); };
+  const lab = h('label', {title: spec.doc}, spec.name, has ? h('button', {class: 'x', title: 'reset to default', onclick: () => { set(undefined); renderInspector(); }}, 'Reset') : null);
+  let ctl;
+  switch (spec.kind) {
+    case 'number': case 'integer': ctl = numInput(has ? cur : '', defaultShown ?? '', set, spec.kind === 'integer' ? 1 : 'any'); break;
+    case 'boolean': ctl = h('input', {type: 'checkbox', checked: !!cur, onchange: e => set(e.target.checked)}); break;
+    case 'enum': ctl = h('select', {onchange: e => set(e.target.value === '' ? undefined : e.target.value)}, h('option', {value: ''}, '(default: ' + (defaultShown ?? '') + ')'), spec.choices.map(c => h('option', {value: c, selected: has && cur === c}, c))); break;
+    case 'string': ctl = h('input', {value: has ? cur : '', placeholder: defaultShown ?? '', list: 'dl-' + n.id, oninput: e => set(e.target.value === '' ? undefined : e.target.value)}); break;
+    case 'distribution': ctl = distEditor(has ? cur : eff[spec.name], spec.default, set); break;
+    case 'object':
+      if (['mix', 'priority', 'kit'].includes(spec.name)) ctl = mapEditor(has ? cur : eff[spec.name], has ? null : spec.default, set);
+      else ctl = h('textarea', {rows: 3, placeholder: JSON.stringify(spec.default), onchange: e => { try { const t = e.target.value.trim(); set(t ? JSON.parse(t) : undefined); e.target.style.borderColor = ''; } catch (x) { e.target.style.borderColor = 'var(--bad)'; } }}, has ? JSON.stringify(cur, null, 1) : '');
+      break;
+    default: ctl = h('input', {value: cur ?? ''});
+  }
+  return h('div', {class: 'prm'}, lab, ctl, h('div', {class: 'doc'}, spec.doc));
+}
+function renameNode(n, newId) {
+  newId = newId.trim(); if (!newId || newId === n.id || nodeById(newId)) return false;
+  cfg.nodes.forEach(m => m.downstream.forEach(e => { if (e.to === n.id) e.to = newId; }));
+  if (sel && sel.kind === 'node' && sel.id === n.id) sel.id = newId;
+  n.id = newId; return true;
+}
+function renderInspector() {
+  const box = $('#inspector'); box.innerHTML = '';
+  if (rtab === 'sim') return renderSimTab(box);
+  if (rtab === 'json') return renderJsonTab(box);
+  if (!sel) { box.append(h('div', {class: 'small'}, 'Select a node or an edge on the canvas to edit it.'), h('div', {class: 'sect', style: 'margin-top:20px'}, h('b', {}, cfg.name || 'Untitled pipeline'), h('div', {class: 'small'}, cfg.description || ('Nodes: ' + cfg.nodes.length)))); return; }
+  if (sel.kind === 'edge') return renderEdgeInspector(box);
+  const n = nodeById(sel.id); if (!n) { sel = null; return; }
+  const s = schemaOf(n.type);
+  box.append(h('div', {class: 'prm'}, h('label', {}, 'id'), h('input', {value: n.id, onchange: e => { if (renameNode(n, e.target.value)) markDirty(); else e.target.value = n.id; renderInspector(); }})));
+  box.append(h('div', {class: 'prm'}, h('label', {}, 'label'), h('input', {value: n.label || '', placeholder: n.id, oninput: e => { n.label = e.target.value || undefined; draw(); }})));
+  const typeOpts = [...types.map(t => t.name), ...Object.keys(cfg.node_types)];
+  box.append(h('div', {class: 'prm'}, h('label', {}, 'type'), h('select', {onchange: e => { n.type = e.target.value; markDirty(); renderInspector(); }}, typeOpts.map(t => h('option', {value: t, selected: t === n.type}, t)))));
+  if (s) box.append(h('div', {class: 'small', style: 'margin:-6px 0 20px'}, s.description));
+  box.append(h('datalist', {id: 'dl-' + n.id}, n.downstream.map(e => h('option', {value: e.to}))));
+  if (s) s.params.forEach(p => box.append(paramControl(n, p)));
+  // routing
+  const rt = n.routing || {};
+  box.append(h('div', {class: 'sect'}, h('b', {}, 'Routing'),
+    h('div', {class: 'small'}, 'How this node picks among its downstream edges.'),
+    h('div', {class: 'prm', style: 'margin-top:6px'}, h('label', {}, 'policy'), h('select', {onchange: e => { n.routing = Object.assign({}, n.routing, {policy: e.target.value}); if (e.target.value === 'probabilistic' && !(n.routing.rules || []).length) delete n.routing; markDirty(); }},
+      ['probabilistic', 'round_robin', 'shortest_queue', 'first_available'].map(p => h('option', {value: p, selected: (rt.policy || 'probabilistic') === p}, p)))),
+    h('details', {open: !!(rt.rules && rt.rules.length)}, h('summary', {}, 'rules (first match wins)'),
+      h('textarea', {rows: 4, placeholder: '[{"match":{"type":"A"},"to":"line_a"},{"to":"line_b"}]', onchange: e => { try { const t = e.target.value.trim(); n.routing = Object.assign({}, n.routing || {}); if (t) n.routing.rules = JSON.parse(t); else delete n.routing.rules; if (!Object.keys(n.routing).length) delete n.routing; e.target.style.borderColor = ''; markDirty(); } catch (x) { e.target.style.borderColor = 'var(--bad)'; } }}, rt.rules ? JSON.stringify(rt.rules, null, 1) : ''))));
+  // connections
+  const ds = h('div', {class: 'sect'}, h('b', {style: 'margin-bottom:12px'}, 'Connections'));
+  n.downstream.forEach((e, i) => ds.append(h('div', {class: 'edge'},
+    h('div', {class: 'row2'}, h('select', {style: 'flex:1', onchange: ev => { e.to = ev.target.value; markDirty(); }}, cfg.nodes.filter(m => m !== n && kindOf(m) !== 'source').map(m => h('option', {value: m.id, selected: m.id === e.to}, m.id))),
+      numInput(e.weight ?? '', 'weight 1', v => { if (v === undefined) delete e.weight; else e.weight = v; markDirty(); }, 'any'),
+      h('button', {onclick: () => { n.downstream.splice(i, 1); markDirty(); renderInspector(); }}, 'Remove')),
+    h('label', {title: 'increments the part\'s rework counter'}, h('input', {type: 'checkbox', checked: !!e.rework, onchange: ev => { e.rework = ev.target.checked || undefined; if (!e.rework) delete e.rework; markDirty(); }}), 'rework'),
+    ' ', h('label', {title: 'target accepts the part even when its buffer is full (breaks deadlock loops)'}, h('input', {type: 'checkbox', checked: !!e.bypass, onchange: ev => { e.bypass = ev.target.checked || undefined; if (!e.bypass) delete e.bypass; markDirty(); }}), 'bypass lane'))));
+  ds.append(h('button', {onclick: () => { const c = cfg.nodes.find(m => m !== n && kindOf(m) !== 'source' && !n.downstream.some(e => e.to === m.id)); if (c) { n.downstream.push({to: c.id}); markDirty(); renderInspector(); } }}, 'Add connection'));
+  box.append(ds);
+  box.append(h('div', {class: 'actions'},
+    h('button', {onclick: () => { const nm = prompt('Name for the new node type (e.g. "cnc_lathe"):', n.type + '_custom'); if (!nm) return; if (types.find(t => t.name === nm)) return toast('That name is a built-in type'); cfg.node_types[nm] = {base: n.type, params: JSON.parse(JSON.stringify(n.params))}; n.type = nm; n.params = {}; renderPalette(); markDirty(); renderInspector(); toast('Saved node type "' + nm + '". It now appears under My node types.', true); }}, 'Save as node type'),
+    h('button', {class: 'danger', onclick: deleteSelection}, 'Delete node')));
+}
+function renderEdgeInspector(box) {
+  const n = nodeById(sel.from), e = n && n.downstream[sel.idx]; if (!e) { sel = null; return; }
+  box.append(h('div', {class: 'sect'}, h('b', {}, n.id + ' to ' + e.to),
+    h('div', {class: 'prm', style: 'margin-top:12px'}, h('label', {}, 'weight (relative share)'), numInput(e.weight ?? '', '1', v => { if (v === undefined) delete e.weight; else e.weight = v; markDirty(); })),
+    h('div', {class: 'prm'}, h('label', {}, 'label'), h('input', {value: e.label || '', oninput: ev => { e.label = ev.target.value || undefined; draw(); }})),
+    h('label', {class: 'small'}, h('input', {type: 'checkbox', checked: !!e.rework, onchange: ev => { e.rework = ev.target.checked || undefined; markDirty(); }}), ' rework edge (counts a rework)'), h('br'),
+    h('label', {class: 'small'}, h('input', {type: 'checkbox', checked: !!e.bypass, onchange: ev => { e.bypass = ev.target.checked || undefined; markDirty(); }}), ' bypass lane (ignores target capacity)'),
+    h('div', {style: 'margin-top:14px'}, h('button', {class: 'danger', onclick: deleteSelection}, 'Delete connection'))));
+}
+function renderSimTab(box) {
+  const s = cfg.simulation;
+  const field = (key, label, def, step) => h('div', {class: 'prm'}, h('label', {}, label), numInput(s[key] ?? '', def, v => { if (v === undefined) delete s[key]; else s[key] = v; markDirty(); }, step));
+  box.append(field('duration_seconds', 'duration (simulated seconds)', 3600), field('random_seed', 'random seed', 42, 1), field('warmup_seconds', 'warm-up (excluded from statistics)', 0),
+    field('sample_interval', 'telemetry sample interval (s, 0 = off)', 60),
+    h('label', {class: 'small'}, h('input', {type: 'checkbox', checked: s.stop_on_deadlock !== false, onchange: e => { s.stop_on_deadlock = e.target.checked; markDirty(); }}), ' stop the run at the first deadlock'),
+    h('div', {class: 'prm', style: 'margin-top:10px'}, h('label', {}, 'name'), h('input', {value: cfg.name || '', oninput: e => { cfg.name = e.target.value || undefined; }})));
+}
+function renderJsonTab(box) {
+  const ta = h('textarea', {rows: 28, spellcheck: 'false'}, JSON.stringify(cfg, null, 2));
+  const err = h('div', {class: 'small', style: 'color:var(--bad);min-height:18px'});
+  box.append(ta, err, h('button', {onclick: async () => { try { await loadConfig(JSON.parse(ta.value), true); err.textContent = ''; toast('Applied', true); } catch (e) { err.textContent = e.message; } }}, 'Apply JSON'),
+    h('div', {class: 'small', style: 'margin-top:6px'}, 'This is the exact file format used by the CLI. Save it and run: factory_sim run pipeline.json'));
+}
+
+// =============================================================== results panel
+function stackBar(r) {
+  const seg = (v, c) => h('i', {style: 'width:' + v + '%;background:var(' + c + ')', title: fmt(v, 1) + '%'});
+  return h('div', {class: 'bar'}, seg(r.busy_pct, '--busy'), seg(r.blocked_pct, '--blocked'), seg(r.down_pct, '--down'), seg(r.idle_pct, '--idle'));
+}
+function renderResults() {
+  const box = $('#results'); box.innerHTML = '';
+  if (!result || !result.summary) { box.append(h('div', {class: 'small'}, 'Run the simulation to see throughput, bottlenecks and an animated replay.')); return; }
+  const tabs = h('div', {class: 'tabs'}, [['summary', 'Summary'], ['nodes', 'Nodes'], ['chart', 'WIP over time'], ['whatif', 'What-if'], ['rep', 'Replications']].map(([k, l]) => h('button', {class: restab === k ? 'on' : '', onclick: () => { restab = k; renderResults(); }}, l)));
+  box.append(tabs);
+  const s = result.summary;
+  if (restab === 'summary') {
+    box.append(h('div', {class: 'kpis'},
+      kpi(fmt(s.uph, 1), 'units / hour'), kpi(s.completed, 'completed'), kpi(s.scrapped, 'scrapped'), kpi(fmt(s.lost_pct, 1) + '%', 'arrivals lost'),
+      kpi(fmt(s.avg_wip, 1), 'avg WIP'), kpi(fmt(s.cycle_time_s, 0) + ' s', 'cycle time'), kpi(fmt(s.little.gap_pct, 1) + '%', "Little's Law gap"), kpi(s.conservation_ok ? 'Pass' : 'Fail', 'unit conservation')));
+    box.append(h('div', {class: 'banner ' + (s.deadlock ? 'bad' : s.demand_limited ? '' : 'warn')}, h('div', {class: 'bt'}, s.deadlock ? 'Deadlock' : s.demand_limited ? 'Diagnosis' : 'Bottleneck'), s.diagnosis || 'No diagnosis.'));
+    (s.warnings || []).forEach(w => box.append(h('div', {class: 'banner warn'}, h('div', {class: 'bt'}, 'Warning'), w)));
+    box.append(h('div', {class: 'note'}, "Little's Law: L = " + fmt(s.little.L, 2) + " units, λ·W = " + fmt(s.little.lambda * s.little.W, 2) + ". The small gap comes from units still in flight at the cut-off."));
+  } else if (restab === 'nodes') {
+    const t = h('table', {}, h('tr', {}, ['node', 'kind', 'state mix (busy / blocked / down / starved)', 'busy%', 'blocked%', 'down%', 'avg Q', 'max Q', 'wait s', 'units', 'index'].map(c => h('th', {}, c))));
+    for (const r of s.nodes) t.append(h('tr', {class: 'row', onclick: () => { sel = {kind: 'node', id: r.id}; rtab = 'node'; syncTabs(); renderInspector(); draw(); }},
+      h('td', {}, r.id, r.id === s.bottleneck && !s.deadlock ? h('span', {class: 'tag'}, 'Bottleneck') : null), h('td', {}, r.kind),
+      h('td', {}, stackBar(r)), h('td', {}, fmt(r.busy_pct, 1)), h('td', {}, fmt(r.blocked_pct, 1)), h('td', {}, fmt(r.down_pct, 1)),
+      h('td', {}, fmt(r.avg_occupancy, 2)), h('td', {}, r.max_occupancy), h('td', {}, fmt(r.avg_wait_s, 1)), h('td', {}, r.processed_units), h('td', {}, r.station ? fmt(r.bottleneck_index, 0) : '')));
+    box.append(t);
+  } else if (restab === 'chart') {
+    const c = h('canvas', {width: 900, height: 200, style: 'width:100%;height:210px;background:var(--raised);border:1px solid var(--line);border-radius:8px'}); box.append(c);
+    box.append(h('div', {class: 'note', style: 'margin-top:10px'}, 'Blue: units in the system (WIP). Green: cumulative completed units / 10. The vertical line follows the replay.'));
+    drawChart(c);
+  } else if (restab === 'whatif') {
+    if (!result.whatif) {
+      box.append(h('div', {class: 'note'}, 'Tries +2 buffer slots, 10% faster processing and 20% shorter repairs at the three most-constrained stations, over several 8-hour runs with common random numbers, and reports the measured throughput change.'),
+        h('button', {class: 'primary', disabled: !serverMode, onclick: () => run({whatif: true, trace: false})}, 'Run what-if analysis'));
+    } else {
+      const w = result.whatif, max = Math.max(1, ...w.results.map(r => Math.abs(r.delta)));
+      box.append(h('div', {class: 'banner'}, h('div', {class: 'bt'}, 'Recommendation'), w.recommendation), h('div', {class: 'note'}, 'Baseline: ' + fmt(w.base_uph, 1) + ' units/hour (' + w.reps + ' seeds)'));
+      const t = h('table', {}, h('tr', {}, ['node', 'change', 'units/h', 'Δ', 'Δ%', ''].map(c => h('th', {}, c))));
+      w.results.forEach(r => t.append(h('tr', {}, h('td', {}, r.node), h('td', {}, r.change), h('td', {}, fmt(r.uph, 1)), h('td', {style: 'color:var(' + (r.delta >= 0 ? '--good' : '--bad') + ')'}, (r.delta >= 0 ? '+' : '') + fmt(r.delta, 1)), h('td', {}, fmt(r.delta_pct, 1) + '%'), h('td', {style: 'width:30%'}, h('div', {class: 'deltabar', style: 'width:' + Math.max(1, 100 * Math.abs(r.delta) / max) + '%;background:var(' + (r.delta >= 0 ? '--good' : '--bad') + ')'})))));
+      box.append(t);
+    }
+  } else if (restab === 'rep') {
+    if (!result.replication) box.append(h('div', {class: 'note'}, 'Runs 20 independent replications (different seeds, in parallel) and reports mean ± 95% confidence interval.'), h('button', {class: 'primary', disabled: !serverMode, onclick: () => run({replications: 20, trace: false})}, 'Run 20 replications'));
+    else { const r = result.replication, row = (n, st, u) => h('tr', {}, h('td', {}, n), h('td', {}, fmt(st.mean, 2)), h('td', {}, '± ' + fmt(st.ci95, 2)), h('td', {}, fmt(st.sd, 2)), h('td', {}, u));
+      box.append(h('div', {class: 'note'}, r.n + ' replications, 95% confidence' + (r.deadlocks ? ' (' + r.deadlocks + ' deadlocked)' : '')),
+        h('table', {}, h('tr', {}, ['metric', 'mean', '95% CI', 'std dev', ''].map(c => h('th', {}, c))), row('throughput', r.uph, 'units/h'), row('avg WIP', r.avg_wip, 'units'), row('cycle time', r.cycle_time_s, 's'), row('arrivals lost', r.lost_pct, '%'))); }
+  }
+}
+const kpi = (v, l) => h('div', {class: 'kpi'}, h('b', {}, v), h('span', {}, l));
+function drawChart(c) {
+  const g = c.getContext('2d'), W = c.width, H = c.height, s = result.summary.samples; if (!s.length) { g.fillStyle = css('--muted'); g.fillText('no samples (sample interval is 0)', 20, 30); return; }
+  const tmax = s[s.length - 1][0], wmax = Math.max(1, ...s.map(p => p[1])), cmax = Math.max(1, ...s.map(p => p[2] / 10)), ymax = Math.max(wmax, cmax) * 1.1, pad = 28;
+  g.clearRect(0, 0, W, H); g.strokeStyle = css('--line'); g.fillStyle = css('--muted'); g.font = '11px system-ui'; g.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) { const y = pad / 2 + (H - pad) * i / 4; g.beginPath(); g.moveTo(pad, y); g.lineTo(W - 6, y); g.stroke(); g.fillText(fmt(ymax * (1 - i / 4), 0), 2, y + 3); }
+  const X = t => pad + (W - pad - 8) * t / tmax, Y = v => pad / 2 + (H - pad) * (1 - v / ymax);
+  const line = (idx, div, col) => { g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); s.forEach((p, i) => { const x = X(p[0]), y = Y(p[idx] / div); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); };
+  line(2, 10, css('--good')); line(1, 1, css('--accent'));
+  if (rp) { const x = X(rp.time / 1000); g.strokeStyle = css('--warn'); g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, 4); g.lineTo(x, H - pad / 2); g.stroke(); }
+  g.fillStyle = css('--muted'); g.fillText(hms(tmax * 1000), W - 60, H - 4); g.fillText('0', pad, H - 4);
+}
+
+// =============================================================== loading / saving
+async function loadConfig(c, keepResult) {
+  if (c.stations && serverMode) c = await api('/api/normalize', c);
+  cfg = normalizeCfg(c); ensureLayout(); sel = null;
+  if (!keepResult) { result = null; rp = null; $('#stale').style.display = 'none'; }
+  renderPalette(); renderInspector(); renderResults(); userMoved = false; fitView(); draw(); markDirty();
+}
+function download(name, text, mime) { const a = h('a', {href: URL.createObjectURL(new Blob([text], {type: mime || 'application/json'})), download: name}); document.body.append(a); a.click(); a.remove(); }
+
+$('#bRun').onclick = () => run();
+$('#bWhatIf').onclick = () => { restab = 'whatif'; if (result && result.whatif) renderResults(); else if (result) renderResults(); else run().then(() => { restab = 'whatif'; renderResults(); }); };
+$('#bRep').onclick = () => { restab = 'rep'; if (result) renderResults(); else run().then(() => { restab = 'rep'; renderResults(); }); };
+$('#bNew').onclick = () => loadConfig({simulation: {duration_seconds: 3600, random_seed: 42, sample_interval: 30}, nodes: []});
+$('#bLayout').onclick = () => { autoLayout(); userMoved = false; fitView(); draw(); };
+$('#bSave').onclick = () => download((cfg.name || 'pipeline').replace(/[^a-z0-9]+/gi, '_').toLowerCase() + '.json', JSON.stringify(cfg, null, 2));
+$('#bLoad').onclick = () => $('#file').click();
+$('#file').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { await loadConfig(JSON.parse(await f.text())); } catch (x) { toast('Could not load: ' + x.message); } e.target.value = ''; };
+$('#bAudit').onclick = async () => {
+  if (!serverMode) return toast('Start `factory_sim serve` to generate audit reports.');
+  if (!cfg.nodes.length) return toast('Add some nodes first.');
+  const btn = $('#bAudit'); btn.disabled = true; btn.textContent = 'Auditing...'; toast('');
+  try {
+    const r = await fetch('/api/audit', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({config: cfg, reps: 10})});
+    if (!r.ok) throw new Error((await r.json()).error);
+    const blob = await r.blob(), score = r.headers.get('X-Audit-Score');
+    const a = h('a', {href: URL.createObjectURL(blob), download: (cfg.name || 'pipeline').replace(/[^a-z0-9]+/gi, '_').toLowerCase() + '_audit.pdf'});
+    document.body.append(a); a.click(); a.remove();
+    toast('Audit report downloaded' + (score ? ' (health score ' + score + '/100)' : ''), true);
+  } catch (e) { toast(e.message); }
+  btn.disabled = false; btn.textContent = 'Audit report (PDF)';
+};
+$('#bExport').onclick = async () => {
+  if (!serverMode) return toast('Already an offline export.');
+  try { const r = await fetch('/api/export', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({config: cfg, trace: true})}); if (!r.ok) throw new Error((await r.json()).error); download('factory_replay.html', await r.text(), 'text/html'); }
+  catch (e) { toast(e.message); }
+};
+$('#examples').onchange = async e => { const ex = window._examples && window._examples.find(x => x.name === e.target.value); if (ex) { await loadConfig(ex.config); run(); } };
+
+function togglePlay() { if (!rp) return; playing = !playing; if (playing && rp.time >= rp.end) { rp.time = 0; seek(0); } $('#bPlay').textContent = playing ? 'Pause' : 'Play'; }
+$('#bPlay').onclick = togglePlay;
+$('#bRes').onclick = () => { const r = $('#results'); r.classList.toggle('hide'); setTimeout(() => { resize(); if (!userMoved) fitView(); draw(); }, 60); $('#bRes').textContent = r.classList.contains('hide') ? 'Show results' : 'Hide results'; };
+$('#speed').onchange = e => speed = Number(e.target.value);
+$('#scrub').oninput = e => { if (rp) { seek(Number(e.target.value)); } };
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (rp && playing) {
+    seek(rp.time + dt * speed * 1000);
+    if (rp.time >= rp.end) { playing = false; $('#bPlay').textContent = 'Play'; }
+  }
+  if (rp) { $('#scrub').value = rp.time; $('#tNow').textContent = hms(rp.time); }
+  const needAnim = rp && (playing || rp.flights.length) || (result && result.summary && result.summary.deadlock);
+  if (needAnim || drag) draw(); else if (rp && !playing) draw();
+  if (restab === 'chart' && result && playing && now % 3 < 1.5) { const c = document.querySelector('#results canvas'); if (c) drawChart(c); }
+  requestAnimationFrame(frame);
+}
+
+// =============================================================== boot
+async function boot() {
+  resize();
+  if (EMB) {
+    types = EMB.types || []; cfg = normalizeCfg(EMB.config); ensureLayout();
+    result = {summary: EMB.summary, trace: EMB.trace, whatif: EMB.whatif, replication: EMB.replication};
+    $('#examples').style.display = 'none'; ['bRun', 'bWhatIf', 'bRep', 'bExport', 'bNew', 'bAudit'].forEach(i => $('#' + i).style.display = 'none');
+    renderPalette(); fitView(); buildReplay(); renderResults(); renderInspector(); draw();
+  } else {
+    try {
+      types = await api('/api/types');
+      const ex = await api('/api/examples'); window._examples = ex;
+      const sel_ = $('#examples'); sel_.append(h('option', {value: ''}, 'Load example')); ex.forEach(x => sel_.append(h('option', {value: x.name}, (x.config.name || x.name))));
+      const first = ex.find(x => x.name === 'sample_factory') || ex[0];
+      if (first) { await loadConfig(first.config); run(); } else { renderPalette(); renderInspector(); renderResults(); }
+    } catch (e) { toast('Cannot reach the factory_sim server: ' + e.message); }
+  }
+  requestAnimationFrame(frame);
+}
+boot();
+</script>
+</body>
+</html>

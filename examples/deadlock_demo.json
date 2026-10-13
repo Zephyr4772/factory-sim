@@ -1,0 +1,23 @@
+{
+  "name": "Deadlock demo: a rework loop with no slack",
+  "description": "Press and Check feed each other through bounded buffers. When both fill, each waits for the other forever. The simulator detects it and prints the wait-for cycle. Fix: add \"bypass\": true to the rework edge (or set a capacity of -1 on one node) and run again.",
+  "simulation": { "duration_seconds": 7200, "random_seed": 3, "sample_interval": 20 },
+  "nodes": [
+    { "id": "source", "type": "source", "label": "Source", "x": 130, "y": 290,
+      "interarrival": { "dist": "exponential", "mean": 7 },
+      "downstream": ["press"] },
+
+    { "id": "press", "type": "machine", "label": "Press", "x": 420, "y": 290,
+      "capacity": 2, "process": { "dist": "normal", "mean": 10, "stddev": 1 },
+      "downstream": ["check"] },
+
+    { "id": "check", "type": "machine", "label": "Check", "x": 720, "y": 290,
+      "capacity": 2, "process": { "dist": "exponential", "mean": 6 },
+      "downstream": [
+        { "to": "ship",  "weight": 0.7 },
+        { "to": "press", "weight": 0.3, "rework": true, "label": "rework" }
+      ] },
+
+    { "id": "ship", "type": "sink", "label": "Shipped", "x": 1030, "y": 290 }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "name": "Bike assembly: custom nodes showcase",
+  "description": "Two part streams meet in an assembler (1 frame + 2 wheels). A custom 'quality_gate' node inspects each bike, sends defects to a rework bench (bypass lane) and scraps repeat offenders. Finished bikes are packed in batches of 3. 'cnc_line' is a user-defined node type built from a template.",
+  "simulation": { "duration_seconds": 7200, "random_seed": 7, "sample_interval": 30 },
+
+  "node_types": {
+    "cnc_line": {
+      "base": "machine",
+      "description": "A machine that breaks down and restarts the part from scratch.",
+      "params": { "mtbf": 1200, "mttr": 120, "on_failure": "restart", "capacity": 4 }
+    }
+  },
+
+  "nodes": [
+    { "id": "frames", "type": "source", "label": "Frame supplier", "x": 100, "y": 160,
+      "interarrival": { "dist": "exponential", "mean": 26 },
+      "mix": { "frame": 1 }, "on_blocked": "wait",
+      "downstream": ["paint"] },
+
+    { "id": "wheels", "type": "source", "label": "Wheel supplier", "x": 100, "y": 470,
+      "interarrival": { "dist": "exponential", "mean": 13 },
+      "mix": { "wheel": 1 }, "on_blocked": "wait",
+      "downstream": ["wheel_belt"] },
+
+    { "id": "paint", "type": "cnc_line", "label": "Paint shop", "x": 360, "y": 160,
+      "process": { "dist": "normal", "mean": 30, "stddev": 5 },
+      "downstream": ["kitter"] },
+
+    { "id": "wheel_belt", "type": "delay", "label": "Wheel conveyor", "x": 360, "y": 470,
+      "transit": { "dist": "uniform", "min": 6, "max": 12 }, "capacity": 12,
+      "downstream": ["kitter"] },
+
+    { "id": "kitter", "type": "assembler", "label": "Bike assembler", "x": 640, "y": 310,
+      "kit": { "frame": 1, "wheel": 2 }, "output_type": "bike",
+      "capacity": 4,
+      "process": { "dist": "normal", "mean": 26, "stddev": 4 },
+      "downstream": ["qc"] },
+
+    { "id": "qc", "type": "quality_gate", "label": "Quality gate", "x": 910, "y": 310,
+      "capacity": 3,
+      "process": { "dist": "exponential", "mean": 8 },
+      "threshold": 0.14, "max_reworks": 1,
+      "pass_to": "pack", "rework_to": "bench", "scrap_to": "bin",
+      "downstream": ["pack", "bench", "bin"] },
+
+    { "id": "bench", "type": "machine", "label": "Rework bench", "x": 910, "y": 570,
+      "capacity": 3,
+      "process": { "dist": "normal", "mean": 45, "stddev": 8 },
+      "downstream": [ { "to": "qc", "bypass": true, "label": "re-inspect" } ] },
+
+    { "id": "pack", "type": "batcher", "label": "Packing (x3)", "x": 1160, "y": 310,
+      "batch_size": 3, "timeout": 150, "capacity": 6,
+      "process": { "dist": "constant", "value": 15 },
+      "downstream": ["ship"] },
+
+    { "id": "ship", "type": "sink", "label": "Shipped", "x": 1390, "y": 220, "counts_as": "completed" },
+    { "id": "bin",  "type": "sink", "label": "Scrap bin", "x": 1390, "y": 490, "counts_as": "scrapped" }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "name": "Mixed products: routing rules, priorities, changeovers",
+  "description": "Orders of types A/B/C are sorted by rule: A to line A, B and C to line B (which serves high-priority C first). Both lines feed a shared paint booth that pays a changeover whenever the part type changes. Try raising the paint booth's speed or lowering its setup time.",
+  "simulation": { "duration_seconds": 7200, "random_seed": 11, "sample_interval": 30 },
+  "nodes": [
+    { "id": "orders", "type": "source", "label": "Orders", "x": 100, "y": 360,
+      "interarrival": { "dist": "exponential", "mean": 20 },
+      "mix": { "A": 0.6, "B": 0.3, "C": 0.1 },
+      "priority": { "C": 2 },
+      "downstream": ["sorter"] },
+
+    { "id": "sorter", "type": "machine", "label": "Sorter", "x": 340, "y": 360,
+      "capacity": 6, "process": 2,
+      "routing": { "policy": "first_available", "rules": [
+        { "match": { "type": "A" }, "to": "line_a" },
+        { "to": "line_b" }
+      ] },
+      "downstream": ["line_a", "line_b"] },
+
+    { "id": "line_a", "type": "machine", "label": "Line A", "x": 590, "y": 210,
+      "capacity": 4,
+      "process_by_type": { "A": { "dist": "normal", "mean": 25, "stddev": 3 } },
+      "mtbf": 1800, "mttr": 150,
+      "downstream": ["paint"] },
+
+    { "id": "line_b", "type": "machine", "label": "Line B", "x": 590, "y": 520,
+      "capacity": 4, "discipline": "priority",
+      "process_by_type": {
+        "B": { "dist": "normal", "mean": 30, "stddev": 4 },
+        "C": { "dist": "normal", "mean": 45, "stddev": 6 }
+      },
+      "setup": 12,
+      "downstream": ["paint"] },
+
+    { "id": "paint", "type": "machine", "label": "Paint booth", "x": 870, "y": 360,
+      "capacity": 6, "process": { "dist": "exponential", "mean": 10 },
+      "setup": 8,
+      "downstream": ["ship"] },
+
+    { "id": "ship", "type": "sink", "label": "Shipped", "x": 1130, "y": 360 }
+  ]
+}

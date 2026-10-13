@@ -1,0 +1,5 @@
+# Keep source files on LF everywhere; never touch binary files.
+* text=auto eol=lf
+*.pdf binary
+*.png binary
+*.jpg binary

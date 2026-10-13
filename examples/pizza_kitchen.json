@@ -1,0 +1,17 @@
+{
+  "name": "Hospitality: pizza kitchen",
+  "description": "Orders of pizza, pasta and salad are routed by type to three different stations. Pizzas share two ovens (shortest-queue), everything meets at the expo pass, and delivery drivers leave in pairs of orders or after 3 minutes. The ovens limit capacity at peak. Orders are lost when the order desk backlog is full.",
+  "simulation": {"duration_seconds": 28800, "random_seed": 91, "warmup_seconds": 1800, "sample_interval": 120},
+  "nodes": [
+    {"id": "orders", "type": "source", "label": "Orders", "x": 100, "y": 410, "interarrival": {"dist": "exponential", "mean": 130}, "mix": {"pizza": 0.65, "pasta": 0.2, "salad": 0.15}, "downstream": ["order_desk"]},
+    {"id": "order_desk", "type": "machine", "label": "Order desk", "x": 370, "y": 410, "capacity": 8, "on_full": "drop", "process": {"dist": "normal", "mean": 45, "stddev": 10}, "routing": {"policy": "first_available", "rules": [{"match": {"type": "pizza"}, "to": "pizza_prep"}, {"match": {"type": "pasta"}, "to": "pasta_station"}, {"match": {"type": "salad"}, "to": "salad_station"}]}, "downstream": ["pizza_prep", "pasta_station", "salad_station"]},
+    {"id": "pizza_prep", "type": "machine", "label": "Pizza prep", "x": 640, "y": 200, "capacity": 6, "process": {"dist": "normal", "mean": 90, "stddev": 20}, "routing": {"policy": "shortest_queue"}, "downstream": ["oven_1", "oven_2"]},
+    {"id": "oven_1", "type": "machine", "label": "Oven 1", "x": 910, "y": 110, "capacity": 3, "process": {"dist": "normal", "mean": 300, "stddev": 40}, "mtbf": 21600, "mttr": 900, "downstream": ["pass"]},
+    {"id": "oven_2", "type": "machine", "label": "Oven 2", "x": 910, "y": 290, "capacity": 3, "process": {"dist": "normal", "mean": 300, "stddev": 40}, "mtbf": 21600, "mttr": 900, "downstream": ["pass"]},
+    {"id": "pasta_station", "type": "machine", "label": "Pasta station", "x": 640, "y": 440, "capacity": 4, "process": {"dist": "normal", "mean": 480, "stddev": 90}, "downstream": ["pass"]},
+    {"id": "salad_station", "type": "machine", "label": "Cold station", "x": 640, "y": 620, "capacity": 4, "process": {"dist": "normal", "mean": 120, "stddev": 30}, "downstream": ["pass"]},
+    {"id": "pass", "type": "machine", "label": "Expo pass", "x": 1180, "y": 410, "capacity": 6, "process": {"dist": "normal", "mean": 30, "stddev": 8}, "downstream": ["dispatch"]},
+    {"id": "dispatch", "type": "batcher", "label": "Delivery runs (x2)", "x": 1450, "y": 410, "batch_size": 2, "timeout": 180, "capacity": 6, "process": 20, "downstream": ["delivered"]},
+    {"id": "delivered", "type": "sink", "label": "Delivered", "x": 1720, "y": 410}
+  ]
+}

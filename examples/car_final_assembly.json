@@ -1,0 +1,17 @@
+{
+  "name": "Automotive: body and engine marriage line",
+  "description": "Painted bodies and tested engines arrive on two supply lines and meet in an assembler that needs one of each. Final inspection (a custom quality_gate) sends defects to a rework bay and scraps cars that fail twice. The paint booth is slowest and breaks down, so it limits the whole plant. Units count bodies and engines separately, so each car is 2 units.",
+  "simulation": {"duration_seconds": 28800, "random_seed": 81, "warmup_seconds": 3600, "sample_interval": 120},
+  "nodes": [
+    {"id": "bodies", "type": "source", "label": "Bodies from press shop", "x": 100, "y": 185, "interarrival": {"dist": "exponential", "mean": 90}, "mix": {"body": 1}, "on_blocked": "wait", "downstream": ["paint"]},
+    {"id": "paint", "type": "machine", "label": "Paint booth", "x": 370, "y": 185, "capacity": 3, "process": {"dist": "normal", "mean": 95, "stddev": 8}, "mtbf": 3600, "mttr": 480, "downstream": ["drying"]},
+    {"id": "drying", "type": "delay", "label": "Drying tunnel", "x": 640, "y": 185, "transit": 120, "capacity": 6, "downstream": ["marriage"]},
+    {"id": "engines", "type": "source", "label": "Engines from plant", "x": 100, "y": 515, "interarrival": {"dist": "exponential", "mean": 90}, "mix": {"engine": 1}, "on_blocked": "wait", "downstream": ["engine_test"]},
+    {"id": "engine_test", "type": "machine", "label": "Engine test cell", "x": 370, "y": 515, "capacity": 3, "process": {"dist": "normal", "mean": 60, "stddev": 6}, "downstream": ["marriage"]},
+    {"id": "marriage", "type": "assembler", "label": "Body-engine marriage", "x": 910, "y": 350, "kit": {"body": 1, "engine": 1}, "output_type": "car", "capacity": 3, "process": {"dist": "normal", "mean": 70, "stddev": 8}, "downstream": ["final_qc"]},
+    {"id": "final_qc", "type": "quality_gate", "label": "Final inspection", "x": 1180, "y": 350, "capacity": 4, "process": {"dist": "normal", "mean": 40, "stddev": 8}, "threshold": 0.1, "max_reworks": 2, "pass_to": "dealer", "rework_to": "rework_bay", "scrap_to": "scrap_yard", "downstream": ["dealer", "rework_bay", "scrap_yard"]},
+    {"id": "rework_bay", "type": "machine", "label": "Rework bay", "x": 1180, "y": 620, "capacity": 3, "process": {"dist": "normal", "mean": 300, "stddev": 60}, "downstream": [{"to": "final_qc", "bypass": true, "label": "re-inspect"}]},
+    {"id": "dealer", "type": "sink", "label": "Dealer shipping", "x": 1450, "y": 350},
+    {"id": "scrap_yard", "type": "sink", "label": "Scrap", "x": 1450, "y": 140, "counts_as": "scrapped"}
+  ]
+}

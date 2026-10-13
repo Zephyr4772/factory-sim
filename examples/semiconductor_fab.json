@@ -1,0 +1,15 @@
+{
+  "name": "Semiconductor: re-entrant wafer fab",
+  "description": "A wafer lot passes lithography, etch, deposition and metrology, then loops back to lithography for its next layer (62% of the time) until its layers are finished. Every lot visits the scanner about 2.6 times, so the lithography tool is the constraint, and its breakdowns hurt the most. The loop uses a bypass lane to avoid deadlock.",
+  "simulation": {"duration_seconds": 64800, "random_seed": 15, "warmup_seconds": 3600, "sample_interval": 300},
+  "nodes": [
+    {"id": "lots", "type": "source", "label": "Wafer lots in", "x": 100, "y": 260, "interarrival": {"dist": "exponential", "mean": 600}, "on_blocked": "wait", "downstream": ["gown"]},
+    {"id": "gown", "type": "delay", "label": "Gowning and cleanroom entry", "x": 370, "y": 260, "transit": 60, "downstream": ["litho"]},
+    {"id": "litho", "type": "machine", "label": "Lithography scanner", "x": 640, "y": 260, "capacity": 8, "process": {"dist": "normal", "mean": 160, "stddev": 20}, "mtbf": 3600, "mttr": 600, "downstream": ["etch"]},
+    {"id": "etch", "type": "machine", "label": "Etch", "x": 910, "y": 260, "capacity": 6, "process": {"dist": "normal", "mean": 100, "stddev": 15}, "downstream": ["deposition"]},
+    {"id": "deposition", "type": "machine", "label": "Deposition", "x": 1180, "y": 260, "capacity": 6, "process": {"dist": "normal", "mean": 120, "stddev": 15}, "mtbf": 7200, "mttr": 900, "downstream": ["metrology"]},
+    {"id": "metrology", "type": "machine", "label": "Metrology", "x": 1450, "y": 260, "capacity": 6, "process": {"dist": "normal", "mean": 45, "stddev": 8}, "downstream": [{"to": "litho", "weight": 0.62, "rework": true, "bypass": true, "label": "next layer"}, {"to": "wafer_test", "weight": 0.33}, {"to": "scrap", "weight": 0.05}]},
+    {"id": "wafer_test", "type": "sink", "label": "To wafer test", "x": 1720, "y": 140},
+    {"id": "scrap", "type": "sink", "label": "Scrapped lots", "x": 1720, "y": 440, "counts_as": "scrapped"}
+  ]
+}

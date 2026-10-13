@@ -1,0 +1,46 @@
+{
+  "name": "Machining plant: parallel assembly + rework loop",
+  "description": "Milling -> conveyor -> two parallel assembly cells (shortest-queue) -> inspection. Inspection ships 90%, scraps 2% and sends 8% back to assembly through a bypass rework lane.",
+  "simulation": { "duration_seconds": 7200, "warmup_seconds": 600, "random_seed": 42, "sample_interval": 30 },
+  "nodes": [
+    { "id": "arrivals", "type": "source", "label": "Arrivals", "x": 100, "y": 390,
+      "interarrival": { "dist": "exponential", "mean": 10 },
+      "downstream": ["milling"] },
+
+    { "id": "milling", "type": "machine", "label": "CNC Milling", "x": 340, "y": 390,
+      "capacity": 5,
+      "process": { "dist": "normal", "mean": 10, "stddev": 1.5 },
+      "mtbf": 3600, "mttr": 300,
+      "downstream": ["belt"] },
+
+    { "id": "belt", "type": "delay", "label": "Conveyor", "x": 570, "y": 390,
+      "transit": 6, "capacity": 10,
+      "routing": { "policy": "shortest_queue" },
+      "downstream": ["asm_a", "asm_b"] },
+
+    { "id": "asm_a", "type": "machine", "label": "Assembly A", "x": 820, "y": 210,
+      "capacity": 3,
+      "process": { "dist": "normal", "mean": 22, "stddev": 3 },
+      "mtbf": 2400, "mttr": 240,
+      "downstream": ["inspect"] },
+
+    { "id": "asm_b", "type": "machine", "label": "Assembly B", "x": 820, "y": 570,
+      "capacity": 3,
+      "process": { "dist": "normal", "mean": 22, "stddev": 3 },
+      "mtbf": 2400, "mttr": 240,
+      "downstream": ["inspect"] },
+
+    { "id": "inspect", "type": "machine", "label": "Inspection", "x": 1070, "y": 390,
+      "capacity": 3,
+      "process": { "dist": "exponential", "mean": 6 },
+      "downstream": [
+        { "to": "ship",  "weight": 0.90 },
+        { "to": "asm_a", "weight": 0.04, "rework": true, "bypass": true, "label": "rework" },
+        { "to": "asm_b", "weight": 0.04, "rework": true, "bypass": true, "label": "rework" },
+        { "to": "scrap", "weight": 0.02 }
+      ] },
+
+    { "id": "ship",  "type": "sink", "label": "Shipped", "x": 1320, "y": 260, "counts_as": "completed" },
+    { "id": "scrap", "type": "sink", "label": "Scrap",   "x": 1320, "y": 520, "counts_as": "scrapped" }
+  ]
+}
